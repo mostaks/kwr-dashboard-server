@@ -5,3 +5,12 @@ Ask for client keys from admin
 ## Firebase
 install firebase cli to use <br />
 `npm i firebase-tools -g`
+
+
+To run project locally
+
+`firebase login`
+`cd functions && npm install`
+`npm run serve`
+Test endpoint
+`http://127.0.0.1:5001/kwr-server/us-central1/app/api/test`
