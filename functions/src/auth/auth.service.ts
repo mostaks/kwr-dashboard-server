@@ -1,6 +1,14 @@
-import {createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword, User} from "firebase/auth";
+import {
+    createUserWithEmailAndPassword,
+    getAuth,
+    signInWithEmailAndPassword,
+    User,
+} from "firebase/auth";
 
-export const signInAuthService = async ({email, password}: { email: string; password: string; }): Promise<User> => {
+export const signInAuthService = async ({email, password}: {
+    email: string;
+    password: string;
+}): Promise<User> => {
     const auth = getAuth();
     try {
         return signInWithEmailAndPassword(auth, email, password)
@@ -15,10 +23,7 @@ export const signInAuthService = async ({email, password}: { email: string; pass
     }
 };
 
-export const signUpAuthService = async ({
-    email,
-    password
-}: {
+export const signUpAuthService = async ({email, password}: {
     email: string;
     password: string;
 }): Promise<User> => {
