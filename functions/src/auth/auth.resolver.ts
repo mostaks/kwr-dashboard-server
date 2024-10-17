@@ -1,4 +1,4 @@
-import {app} from '../index'
+import {app} from "../index";
 import {getAuth, signOut} from "firebase/auth";
 import {signInAuthService, signUpAuthService} from "./auth.service";
 

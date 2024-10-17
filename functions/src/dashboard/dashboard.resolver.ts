@@ -1,8 +1,11 @@
-import {app, db} from "../index";
+import admin from "firebase-admin";
+import {app} from "../index";
 import {
   createDashboardService,
   getDashboardByIdService,
 } from "./dashboard.service";
+
+const db = admin.firestore();
 
 // test server
 app.get("/api/test", async (req: any, res: any) => {

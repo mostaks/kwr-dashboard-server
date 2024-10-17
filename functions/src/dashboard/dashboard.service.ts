@@ -1,4 +1,6 @@
-import {admin, db} from "../index";
+import admin from "firebase-admin";
+
+const db = admin.firestore();
 
 export const createDashboardService = async (body: {
     name: string;

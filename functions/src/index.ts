@@ -7,19 +7,17 @@ import serviceAccount from "./permissions.json";
 
 
 admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: serviceAccount.project_id,
-    privateKey: serviceAccount.private_key,
-    clientEmail: serviceAccount.client_email,
-  } as ServiceAccount),
-  databaseURL: "https://kwr-server-default-rtdb.asia-southeast1.firebasedatabase.app",
+    credential: admin.credential.cert({
+        projectId: serviceAccount.project_id,
+        privateKey: serviceAccount.private_key,
+        clientEmail: serviceAccount.client_email,
+    } as ServiceAccount),
+    databaseURL: "https://kwr-server-default-rtdb.asia-southeast1.firebasedatabase.app",
 });
-
-const db = admin.firestore();
 
 const app = express();
 app.use(cors({origin: true}));
 
 exports.app = https.onRequest(app);
 
-export {app, db, admin};
+export {app};
