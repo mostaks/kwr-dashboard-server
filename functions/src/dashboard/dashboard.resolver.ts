@@ -1,61 +1,58 @@
-import admin from "firebase-admin";
-import {app} from "../index";
+import { db } from '..';
 import {
   createDashboardService,
   getDashboardByIdService,
-} from "./dashboard.service";
+} from './dashboard.service';
 
-const db = admin.firestore();
-
-// test server
-app.get("/api/test", async (req: any, res: any) => {
+export const testHandler = async (req: any, res: any) => {
   try {
-    return res.status(200).send({greeting: "hello"});
+    return res.status(200).send({ greeting: 'hello test' });
   } catch (error) {
-    console.error("Error greeting:", error);
-    return res.status(500).send({error: "Server failed to greet client"});
+    console.error('Error greeting:', error);
+    return res.status(500).send({ error: 'Server failed to greet client' });
   }
-});
-
-// Add keyword dashboard from json input
-app.post("/api/dashboard/create", async (req: any, res: any) => {
+};
+export const createDashboardHandler = async (req: any, res: any) => {
   try {
     const dashboardRef = await createDashboardService(req.body);
-
-    return res.status(200)
-      .json({id: dashboardRef.id, message: "dashboard created successfully"});
+    return res
+      .status(200)
+      .json({ id: dashboardRef.id, message: 'dashboard created successfully' });
   } catch (error) {
-    console.error("Error creating dashboard:", error);
-    return res.status(500).json({error: "Failed to create dashboard"});
+    console.error('Error creating dashboard:', error);
+    return res.status(500).json({ error: 'Failed to create dashboard' });
   }
-});
+};
 
-// read item
-app.get("/api/dashboard/:dashboard_id", async (req: any, res: any) => {
+export const getDashboardsHandler = async (req: any, res: any) => {
+  try {
+    const snapshot = await db.collection('dashboard').get();
+    if (snapshot.empty) {
+      console.log('No matching documents found.');
+      return [];
+    }
+    const items: any[] = [];
+    snapshot.forEach((doc) => {
+      items.push({ id: doc.id, ...doc.data() }); // Get document ID and data
+    });
+
+    const response = {
+      dashboards: items,
+    };
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+export const getDashboardByIdHandler = async (req: any, res: any) => {
   try {
     const dashboardId = req.params?.dashboard_id;
     const dashboard = await getDashboardByIdService(dashboardId, res);
 
     return res.status(200).send(dashboard);
   } catch (error) {
-    console.error("Error fetching dashboard:", error);
-    return res.status(500).send({error: "Failed to fetch dashboard"});
+    console.error('Error fetching dashboard:', error);
+    return res.status(500).send({ error: 'Failed to fetch dashboard' });
   }
-});
-
-// read item
-app.get("/api/dashboards", async (req: any, res: any) => {
-  try {
-    const dashboardRefs = db.collection("dashboards")
-      .get();
-
-    const response = {
-      dashboards: dashboardRefs,
-    };
-
-    return res.status(200).send(response);
-  } catch (error) {
-    console.error("Error fetching dashboard:", error);
-    return res.status(500).send({error: "Failed to fetch dashboard"});
-  }
-});
+};

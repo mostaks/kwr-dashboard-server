@@ -1,33 +1,57 @@
 module.exports = {
-  root: true,
   env: {
+    browser: true,
     es6: true,
     node: true,
+    jest: true,
   },
   extends: [
-    "eslint:recommended",
-    "plugin:import/errors",
-    "plugin:import/warnings",
-    "plugin:import/typescript",
-    "google",
-    "plugin:@typescript-eslint/recommended",
+    'airbnb-typescript', // Uses the recommended rules from airbnb-typescript
+    'airbnb/hooks',
+    'prettier',
   ],
-  parser: "@typescript-eslint/parser",
+  parser: '@typescript-eslint/parser',
   parserOptions: {
-    project: ["tsconfig.json", "tsconfig.dev.json"],
-    sourceType: "module",
+    ecmaFeatures: {
+      jsx: true,
+    },
+    ecmaVersion: 2018,
+    sourceType: 'module',
+    project: './tsconfig.json',
   },
-  ignorePatterns: [
-    "/lib/**/*", // Ignore built files.
-    "/generated/**/*", // Ignore generated files.
-  ],
   plugins: [
-    "@typescript-eslint",
-    "import",
+    'react',
+    'react-hooks',
+    '@typescript-eslint/eslint-plugin',
+    'prettier',
+    'baseline',
   ],
   rules: {
-    "quotes": ["error", "double"],
-    "import/no-unresolved": 0,
-    "indent": ["error", 2],
+    camelcase: 'error',
+    '@typescript-eslint/camelcase': 'off',
+    'no-param-reassign': ['error', { props: false }],
+    'no-underscore-dangle': ['error', { allow: ['_id'] }],
+    'baseline/no-dist-imports': 'error',
+    'baseline/enforce-src-imports': 'error',
+    'baseline/no-reactstrap-button': 'off',
+    'baseline/enforce-jsdoc-comments': 'off',
+    'react/jsx-one-expression-per-line': 'off',
+    '@typescript-eslint/restrict-template-expressions': 'off',
+    'import/prefer-default-export': 'off',
+    'prefer-destructuring': ['error', { object: true, array: false }],
+    radix: 'off',
+    'react/jsx-wrap-multilines': [
+      'error',
+      {
+        declaration: 'parens-new-line',
+        assignment: 'parens-new-line',
+        return: 'parens-new-line',
+        arrow: 'parens-new-line',
+        condition: 'parens-new-line',
+        logical: 'ignore',
+        prop: 'ignore',
+      },
+    ],
   },
+  reportUnusedDisableDirectives: true,
 };
