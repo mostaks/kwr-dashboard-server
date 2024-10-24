@@ -1,0 +1,55 @@
+{
+    "env": {
+        "node": true
+    },
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "project": "./tsconfig.json",
+        "tsconfigRootDir": "."
+    },
+    "plugins": [
+        "@typescript-eslint/eslint-plugin"
+    ],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/eslint-recommended",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "prettier",
+        "prettier/@typescript-eslint"
+    ],
+    "rules": {
+        "camelcase": [
+            "error",
+            {
+                "allow": [
+                    "duration_in_traffic",
+                    "arrival_time",
+                    "phone_number"
+                ]
+            }
+        ],
+        "@typescript-eslint/camelcase": [
+            "error",
+            {
+                "allow": [
+                    "duration_in_traffic",
+                    "arrival_time"
+                ]
+            }
+        ],
+        "jsx-a11y/click-events-have-key-events": "off",
+        "@typescript-eslint/restrict-template-expressions": "off",
+        "@typescript-eslint/interface-name-prefix": [
+            "warn",
+            {
+                "prefixWithI": "always"
+            }
+        ]
+    },
+    "settings": {
+        "react": {
+            "version": "detect"
+        }
+    }
+}
