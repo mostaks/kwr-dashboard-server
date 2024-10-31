@@ -1,7 +1,6 @@
 import {db} from '..';
 import admin from 'firebase-admin';
 import serviceAccount from '../permissions.json';
-import {logger} from "firebase-functions";
 
 type MonthlySearch = {
     year: number;
@@ -58,12 +57,14 @@ type DataForSEOResponse = {
 
 export const createDashboardService = async (body: {
     name: string;
+    suffix: string;
     tagCategories: string[];
     keywords: Record<string, string>[];
 }) => {
     try {
         const {
             name,
+            suffix,
             tagCategories,
             keywords
         } = body;
@@ -79,11 +80,11 @@ export const createDashboardService = async (body: {
         if (dashboardQuery.empty) {
             // Create new dashboard if it doesn't exist
             dashboardRef = db.collection('dashboards').doc();
-            batch.set(dashboardRef, {name});
+            batch.set(dashboardRef, {name, suffix}, {merge: true});
         } else {
             // Use existing dashboard reference
             dashboardRef = dashboardQuery.docs[0].ref;
-            batch.update(dashboardRef, {name});
+            batch.update(dashboardRef, {name, suffix});
         }
 
         // Create/update tag categories and tags
@@ -98,7 +99,7 @@ export const createDashboardService = async (body: {
             if (categoryQuery.empty) {
                 // Create new tag category if it doesn't exist
                 categoryRef = db.collection('tagCategories').doc();
-                batch.set(categoryRef, {name: category});
+                batch.set(categoryRef, {name: category}, { merge: true });
             } else {
                 // Use existing tag category reference
                 categoryRef = categoryQuery.docs[0].ref;
@@ -118,6 +119,7 @@ export const createDashboardService = async (body: {
         const keywordRefs = [];
         const tagRefs: any[] = [];
         const dashboardTagTitleAndNames = [];
+        let dataForSEOResponse: DataForSEOResponse | null;
         try {
             // Fetch data from DataForSEO
             const response =
@@ -143,16 +145,21 @@ export const createDashboardService = async (body: {
                     ])
                 });
 
-            const dataForSEOResponse: DataForSEOResponse = await response
+            dataForSEOResponse = await response
                 .json();
 
+        } catch (error) {
+          console.error(`Error fetching DataForSEO data for campaign ${name}:`, error);
+          dataForSEOResponse = null;
+        }
+
             const dataForSeoResult = dataForSEOResponse
-                .tasks[0]
-                .result;
+                ?.tasks[0]
+                ?.result;
 
             for (const keyword of keywords) {
                 // Result from dataForSEO
-                const dataForSEO = dataForSeoResult.find((res) => res.keyword === keyword.Keyword);
+                const dataForSEO = dataForSeoResult?.find((res) => res.keyword === keyword.Keyword) || null;
                 // Query for existing keyword
                 const keywordQuery = await db.collection('keywords')
                     .where('name', '==', keyword.Keyword)
@@ -192,8 +199,6 @@ export const createDashboardService = async (body: {
                             return tg.data.name === val && tg.data.tagCategory === key
                         });
 
-                        logger.info('BLAH BLAH')
-
                         if (!tagQuery.empty) {
                             // Use existing tag reference if it exists
                             tagRef = tagQuery.docs[0].ref;
@@ -212,7 +217,7 @@ export const createDashboardService = async (body: {
                                 name: val,
                                 tagCategoryRef: categoryRef,
                                 tagCategory: key,
-                            });
+                            }, {merge: true});
                         }
 
                         if (!newTag) {
@@ -226,15 +231,13 @@ export const createDashboardService = async (body: {
                 // Use set with merge option to update existing or create new
                 batch.set(keywordRef, {
                     name: keyword.Keyword,
+                    keyRow: {...keyword},
                     tags: keywordTagRefs,
                     dataForSEO, // Add the DataForSEO data
                     lastUpdated: admin.firestore.FieldValue.serverTimestamp() // Add timestamp for tracking
                 }, {merge: true});
 
             }
-        } catch (error) {
-            console.error(`Error fetching DataForSEO data for campaign ${name}:`, error);
-        }
 
         // Update the dashboard with the list of keyword references
         batch.update(dashboardRef, {
@@ -256,14 +259,15 @@ export const getDashboardByIdService = async (
     res: any,
 ) => {
     try {
-        const dashboardRef = db.collection('dashboards').doc(dashboardId);
+        const dashboardRef = db.collection('dashboards')
+            .where('name', '==', dashboardId);
         const dashboardDoc = await dashboardRef.get();
 
-        if (!dashboardDoc.exists) {
+        if (dashboardDoc.empty) {
             return res.status(404).send({error: 'dashboard not found'});
         }
 
-        const dashboardData = dashboardDoc.data();
+        const dashboardData = dashboardDoc.docs[0].data();
         const tagCategoryRefs = dashboardData?.tagCategories || [];
 
         // Fetch tag categories and their tags
@@ -289,18 +293,45 @@ export const getDashboardByIdService = async (
         const tagCategories = await Promise.all(tagCategoriesPromises);
 
         // Fetch keywords associated with this dashboard
-        const keywordsSnapshot = await db
-            .collection('keywords')
-            .where('dashboardId', '==', dashboardId)
-            .get();
+        const keywordsSnapshot = await Promise.all(
+            dashboardData.keywords.map((ref: any) => ref.get())
+        );
 
-        const keywords = keywordsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
+        const keywords = await Promise.all(
+            keywordsSnapshot.map(async (doc) => {
+                const keywordData = doc.data();
+                const tagRefs = keywordData.tags || [];
+
+                // Fetch all tags for this keyword
+                const tags = await Promise.all(
+                    tagRefs.map(async (tagRef: any) => {
+                        const tagDoc = await tagRef.get();
+                        const tagData = tagDoc.data();
+
+                        // Get the tag category for each tag
+                        const tagCategoryDoc = await tagData.tagCategoryRef.get();
+
+                        return {
+                            id: tagDoc.id,
+                            ...tagData,
+                            tagCategoryRef: {
+                                id: tagCategoryDoc.id,
+                                ...tagCategoryDoc.data()
+                            }
+                        };
+                    })
+                );
+
+                return {
+                    id: doc.id,
+                    ...keywordData,
+                    tags
+                }
+
+            }));
 
         return {
-            id: dashboardDoc.id,
+            id: dashboardData.id,
             name: dashboardData?.name,
             tagCategories: tagCategories,
             keywords: keywords,

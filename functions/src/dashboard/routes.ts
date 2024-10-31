@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import {
-  createDashboardHandler,
-  getDashboardsHandler,
-  testHandler,
+    createDashboardHandler,
+    getDashboardByIdHandler,
+    getDashboardsHandler,
+    testHandler,
 } from './dashboard.resolver';
 
 // Create a new Router instance
@@ -13,7 +14,7 @@ router.get('/api/test', testHandler);
 router.post('/api/dashboard/create', createDashboardHandler);
 // Read item
 router.get('/api/dashboards', getDashboardsHandler);
-router.get('/api/dashboard/:dashboard_id', getDashboardsHandler);
+router.get('/api/dashboard/:dashboard_id', getDashboardByIdHandler);
 
 // Export the router
 export default router;

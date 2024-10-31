@@ -6,7 +6,7 @@ import {
 
 export const testHandler = async (req: any, res: any) => {
   try {
-    return res.status(200).send({ greeting: 'hello test' });
+    return await res.status(200).send({ greeting: 'hello test' });
   } catch (error) {
     console.error('Error greeting:', error);
     return res.status(500).send({ error: 'Server failed to greet client' });
