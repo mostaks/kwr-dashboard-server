@@ -26,10 +26,12 @@ export const createDashboardHandler = async (req: any, res: any) => {
 
 export const getDashboardsHandler = async (req: any, res: any) => {
   try {
-    const snapshot = await db.collection('dashboard').get();
+    const snapshot = await db.collection('dashboards')
+      .get();
+
     if (snapshot.empty) {
       console.log('No matching documents found.');
-      return [];
+      return res.status(200).json({ dashboards: [] });
     }
     const items: any[] = [];
     snapshot.forEach((doc) => {
