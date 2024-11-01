@@ -12,6 +12,7 @@ export const testHandler = async (req: any, res: any) => {
     return res.status(500).send({ error: 'Server failed to greet client' });
   }
 };
+
 export const createDashboardHandler = async (req: any, res: any) => {
   try {
     const dashboardRef = await createDashboardService(req.body);
