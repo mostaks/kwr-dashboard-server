@@ -112,7 +112,13 @@ export const  createDashboardService = async (body: {
     } else {
       // Use existing dashboard reference
       dashboardRef = dashboardQuery.docs[0].ref;
-      batch.update(dashboardRef, {name, suffix, lastUpdated: admin.firestore.FieldValue.serverTimestamp()});
+      batch.update(dashboardRef, {
+        name,
+        suffix,
+        lastUpdated: admin.firestore
+          .FieldValue
+          .serverTimestamp()
+      });
     }
 
     // Create/update tag categories and tags
