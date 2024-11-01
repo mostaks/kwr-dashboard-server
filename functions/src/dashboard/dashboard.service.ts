@@ -59,7 +59,7 @@ type Task = {
   result: KeywordResult[];
 }
 
-type DataForSEOResponse = {
+type SeacrhVolumeResponse = {
   version: string;
   status_code: number;
   status_message: string;
@@ -144,20 +144,17 @@ export const  createDashboardService = async (body: {
 
     // Fetch keyword data from Google Ads API and save to database
     // Add this check before the try-catch block for the API call
-    const shouldFetchNewData = true;
+    let shouldFetchNewData = true;
 
-    // This isnt working right
-    // It will overwrite the dataForSEO in the next call and so we lose the data for seo
-    // Defs need to make it work though.
-    // if (!dashboardQuery.empty) {
-    //   const lastUpdated = dashboardQuery.docs[0].data().lastUpdated?.toDate();
-    //   if (lastUpdated) {
-    //     const oneMonthAgo = new Date();
-    //     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    //     shouldFetchNewData = lastUpdated < oneMonthAgo;
-    //   }
-    // }
-    let dataForSEOResponse: DataForSEOResponse | null = null;
+    if (!dashboardQuery.empty) {
+      const lastUpdated = dashboardQuery.docs[0].data().lastUpdated?.toDate();
+      if (lastUpdated) {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        shouldFetchNewData = lastUpdated < oneMonthAgo;
+      }
+    }
+    let searchVolumeResponse: SeacrhVolumeResponse | null = null;
 
     if (shouldFetchNewData) {
       try {
@@ -185,18 +182,18 @@ export const  createDashboardService = async (body: {
             ])
           });
 
-        dataForSEOResponse = await response
+        searchVolumeResponse = await response
           .json();
 
       } catch (error) {
-        console.error(`Error fetching DataForSEO data for campaign ${name}:`, error);
-        dataForSEOResponse = null;
+        console.error(`Error fetching DataForSEO data for dashboard ${name}:`, error);
+        searchVolumeResponse = null;
       }
     } else {
       console.log(`Skipping DataForSEO API call for dashboard ${name} as data is less than 1 month old`);
     }
 
-    const dataForSeoResult = dataForSEOResponse
+    const searchVolumeResult = searchVolumeResponse
       ?.tasks[0]
       ?.result;
 
@@ -206,12 +203,22 @@ export const  createDashboardService = async (body: {
     const dashboardTagTitleAndNames = [];
 
     for (const keyword of keywords) {
-      // Result from dataForSEO
-      const dataForSEO = dataForSeoResult?.find((res) => res.keyword === keyword.Keyword) || null;
       // Query for existing keyword
       const keywordQuery = await db.collection('keywords')
         .where('name', '==', keyword.Keyword)
         .get();
+
+      // Result from dataForSEO
+      let searchVolume: KeywordResult | null = null;
+      if (!keywordQuery.empty) {
+        const existingKeyword = keywordQuery.docs[0].data();
+
+        if (!shouldFetchNewData) {
+          searchVolume = existingKeyword.searchVolume;
+        } else {
+          searchVolume = searchVolumeResult?.find((res) => res.keyword === keyword.Keyword) || null;
+        }
+      }
 
       let keywordRef;
 
@@ -282,8 +289,8 @@ export const  createDashboardService = async (body: {
         const existingDashboardRefs = existingKeyword.dashboardRefs || [];
         const row = keyword;
         // Add monthly search data to row
-        if (dataForSEO) {
-          dataForSEO.monthly_searches?.forEach((searchData) => {
+        if (searchVolume) {
+          searchVolume.monthly_searches?.forEach((searchData) => {
             const monthStr = Months[searchData.month - 1]; // Convert month number (1-12) to three letter format
             const yearStr = searchData.year.toString().slice(-2); // Get last two digits of year
             const key = `${monthStr}-${yearStr}`;
@@ -303,14 +310,14 @@ export const  createDashboardService = async (body: {
             }
           ],
           tags: keywordTagRefs,
-          ...(dataForSEO ? {dataForSEO} : {}),
+          ...(searchVolume ? {searchVolume} : {}),
           lastUpdated: admin.firestore.FieldValue.serverTimestamp()
         }, {merge: true});
       } else {
         const row = keyword;
         // Add monthly search data to row
-        if (dataForSEO) {
-          dataForSEO.monthly_searches?.forEach((searchData) => {
+        if (searchVolume) {
+          searchVolume.monthly_searches?.forEach((searchData) => {
             const monthStr = Months[searchData.month - 1]; // Convert month number (1-12) to three letter format
             const yearStr = searchData.year.toString().slice(-2); // Get last two digits of year
             const key = `${monthStr}-${yearStr}`;
@@ -327,7 +334,7 @@ export const  createDashboardService = async (body: {
             keyRow: {...row}
           }],
           tags: keywordTagRefs,
-          ...(dataForSEO ? {dataForSEO} : {}), // Only include dataForSEO if it exists
+          ...(searchVolume ? {searchVolume} : {}), // Only include searchVolume if it exists
           lastUpdated: admin.firestore.FieldValue.serverTimestamp() // Add timestamp for tracking
         }, {merge: true});
       }
