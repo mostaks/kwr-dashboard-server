@@ -144,7 +144,7 @@ export const  createDashboardService = async (body: {
 
     // Fetch keyword data from Google Ads API and save to database
     // Add this check before the try-catch block for the API call
-    let shouldFetchNewData = true;
+    const shouldFetchNewData = true;
 
     // This isnt working right
     // It will overwrite the dataForSEO in the next call and so we lose the data for seo
