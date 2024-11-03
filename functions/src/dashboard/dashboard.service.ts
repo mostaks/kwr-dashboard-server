@@ -221,23 +221,24 @@ export const createDashboardService = async (body: {
 
     // Split keywords into chunks of 30
     const keywordNames = keywords.map(k => k.Keyword);
-    const keywordChunks = chunkArray(keywordNames, 30);
+    const keywordChunks = chunkArray(keywordNames, 20);
 
-    // Fetch keywords in chunks
-    const keywordsSnapshots = await Promise.all(
-      keywordChunks.map(chunk =>
-        db.collection('keywords')
-          .where('name', 'in', chunk)
-          .get()
-      )
-    );
+    // Array to store all keyword docs
+    let allKeywordDocs: any[] = [];
 
-    // Combine results into a single map
+    // Process each chunk
+    for (const chunk of keywordChunks) {
+      const chunkSnapshot = await db.collection('keywords')
+        .where('name', 'in', chunk)
+        .get();
+
+      allKeywordDocs = [...allKeywordDocs, ...chunkSnapshot.docs];
+    }
+
+    // Create a map of existing keywords
     const existingKeywords = new Map();
-    keywordsSnapshots.forEach(snapshot => {
-      snapshot.forEach(doc => {
-        existingKeywords.set(doc.data().name, {ref: doc.ref, data: doc.data()});
-      });
+    allKeywordDocs.forEach(doc => {
+      existingKeywords.set(doc.data().name, {ref: doc.ref, data: doc.data()});
     });
 
     // Batch fetch all existing tags
@@ -252,20 +253,25 @@ export const createDashboardService = async (body: {
 
     const existingTags = new Map();
     if (tagQueries.size > 0) {
-      const tagsSnapshot = await db.collection('tags')
-        .where(
-          'name',
-          'in',
-          Array.from(tagQueries)
-              // @ts-ignore
-              .map(q => JSON.parse(q).name)
-        )
-        .get();
+      // Convert Set to Array and get tag names
+      const tagNames = Array.from(tagQueries)
+        .map(q => JSON.parse(q as any).name);
 
-      tagsSnapshot.forEach(doc => {
-        const data = doc.data();
-        existingTags.set(`${data.tagCategory}-${data.name}`, {ref: doc.ref, data});
-      });
+      // Split into chunks of 30 (Firestore's limit)
+      const tagChunks = chunkArray(tagNames, 30);
+
+      // Process each chunk
+      for (const chunk of tagChunks) {
+        const chunkSnapshot = await db.collection('tags')
+          .where('name', 'in', chunk)
+          .get();
+
+        // Add results to map
+        chunkSnapshot.forEach(doc => {
+          const data = doc.data();
+          existingTags.set(`${data.tagCategory}-${data.name}`, {ref: doc.ref, data});
+        });
+      }
     }
 
     // Process keywords
