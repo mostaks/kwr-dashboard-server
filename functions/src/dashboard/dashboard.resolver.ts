@@ -1,3 +1,4 @@
+import * as functions from 'firebase-functions';
 import { db } from '..';
 import {
   createDashboardService,
@@ -13,17 +14,22 @@ export const testHandler = async (req: any, res: any) => {
   }
 };
 
-export const createDashboardHandler = async (req: any, res: any) => {
-  try {
-    const dashboardRef = await createDashboardService(req.body);
-    return res
-      .status(200)
-      .json({ id: dashboardRef.id, message: 'dashboard created successfully' });
-  } catch (error) {
-    console.error('Error creating dashboard:', error);
-    return res.status(500).json({ error: 'Failed to create dashboard' });
-  }
-};
+export const createDashboardHandler = functions
+  .runWith({
+    timeoutSeconds: 540, // 9 minutes = 540 seconds
+    memory: '1GB'  // Optional: you might want to increase memory as well for long-running operations
+  })
+  .https.onRequest(async (req: any, res: any) => {
+    try {
+      const dashboardRef = await createDashboardService(req.body);
+      return res
+        .status(200)
+        .json({ id: dashboardRef.id, message: 'dashboard created successfully' });
+    } catch (error) {
+      console.error('Error creating dashboard:', error);
+      return res.status(500).json({ error: 'Failed to create dashboard' });
+    }
+  });
 
 export const getDashboardsHandler = async (req: any, res: any) => {
   try {
