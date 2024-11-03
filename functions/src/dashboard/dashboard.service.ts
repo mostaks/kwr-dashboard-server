@@ -1,6 +1,7 @@
 import {db} from '..';
 import admin from 'firebase-admin';
 import serviceAccount from '../permissions.json';
+import {logger} from "firebase-functions";
 
 type MonthlySearch = {
   year: number;
@@ -76,6 +77,7 @@ export const  createDashboardService = async (body: {
   tagCategories: string[];
   keywords: Record<string, string>[];
 }) => {
+  logger.info('dashboard.service.createDashboardService');
   try {
     const {
       name,
@@ -86,6 +88,7 @@ export const  createDashboardService = async (body: {
     // Start a new batch
     const batch = db.batch();
 
+    logger.info('START dashboards')
     // Check if dashboard with the same name exists
     const dashboardQuery = await db.collection('dashboards')
       .where('name', '==', name)
@@ -121,6 +124,9 @@ export const  createDashboardService = async (body: {
       });
     }
 
+    logger.info('COMPLETE dashboards');
+
+    logger.info('START tagCategories')
     // Create/update tag categories and tags
     const tagCategoryRefs = [];
     for (const category of tagCategories) {
@@ -148,6 +154,8 @@ export const  createDashboardService = async (body: {
       tagCategories: tagCategoryRefs
     }, {merge: true});
 
+    logger.info('COMPLETE tagCategories')
+
     // Fetch keyword data from Google Ads API and save to database
     // Add this check before the try-catch block for the API call
     let shouldFetchNewData = true;
@@ -162,6 +170,7 @@ export const  createDashboardService = async (body: {
     }
     let searchVolumeResponse: SeacrhVolumeResponse | null = null;
 
+    logger.info('START dataForSEO')
     if (shouldFetchNewData) {
       try {
         // Fetch data from DataForSEO
@@ -203,11 +212,14 @@ export const  createDashboardService = async (body: {
       ?.tasks[0]
       ?.result;
 
+    logger.info('COMPLETE dataForSEO')
+
     // Create an array to store keyword references
     const keywordRefs = [];
     const tagRefs: any[] = [];
     const dashboardTagTitleAndNames = [];
 
+    logger.info('START keywords');
     for (const keyword of keywords) {
       // Query for existing keyword
       const keywordQuery = await db.collection('keywords')
@@ -350,6 +362,8 @@ export const  createDashboardService = async (body: {
     batch.update(dashboardRef, {
       keywords: keywordRefs,
     });
+
+    logger.info('COMPLETE keywords');
 
     // Commit the batch
     await batch.commit();
