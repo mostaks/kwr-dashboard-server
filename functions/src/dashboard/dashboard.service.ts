@@ -2,6 +2,7 @@ import {db} from '..';
 import admin from 'firebase-admin';
 import serviceAccount from '../permissions.json';
 import {logger} from "firebase-functions";
+import {chunkArray} from "../utils";
 
 type MonthlySearch = {
   year: number;
@@ -218,16 +219,25 @@ export const createDashboardService = async (body: {
     const keywordRefs = [];
     const dashboardTagTitleAndNames = [];
 
-    // First, batch fetch all existing keywords
+    // Split keywords into chunks of 30
     const keywordNames = keywords.map(k => k.Keyword);
-    const keywordsSnapshot = await db.collection('keywords')
-      .where('name', 'in', keywordNames)
-      .get();
+    const keywordChunks = chunkArray(keywordNames, 30);
 
-    // Create a map for quick lookup
+    // Fetch keywords in chunks
+    const keywordsSnapshots = await Promise.all(
+      keywordChunks.map(chunk =>
+        db.collection('keywords')
+          .where('name', 'in', chunk)
+          .get()
+      )
+    );
+
+    // Combine results into a single map
     const existingKeywords = new Map();
-    keywordsSnapshot.forEach(doc => {
-      existingKeywords.set(doc.data().name, {ref: doc.ref, data: doc.data()});
+    keywordsSnapshots.forEach(snapshot => {
+      snapshot.forEach(doc => {
+        existingKeywords.set(doc.data().name, {ref: doc.ref, data: doc.data()});
+      });
     });
 
     // Batch fetch all existing tags
