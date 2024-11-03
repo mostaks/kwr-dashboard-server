@@ -71,7 +71,7 @@ type SeacrhVolumeResponse = {
   tasks: Task[];
 }
 
-export const  createDashboardService = async (body: {
+export const createDashboardService = async (body: {
   name: string;
   suffix: string;
   tagCategories: string[];
@@ -211,159 +211,146 @@ export const  createDashboardService = async (body: {
     const searchVolumeResult = searchVolumeResponse
       ?.tasks[0]
       ?.result;
-
     logger.info('COMPLETE dataForSEO')
 
+    logger.info('START keywords');
     // Create an array to store keyword references
     const keywordRefs = [];
-    const tagRefs: any[] = [];
     const dashboardTagTitleAndNames = [];
 
-    logger.info('START keywords');
-    for (const keyword of keywords) {
-      // Query for existing keyword
-      const keywordQuery = await db.collection('keywords')
-        .where('name', '==', keyword.Keyword)
+    // First, batch fetch all existing keywords
+    const keywordNames = keywords.map(k => k.Keyword);
+    const keywordsSnapshot = await db.collection('keywords')
+      .where('name', 'in', keywordNames)
+      .get();
+
+    // Create a map for quick lookup
+    const existingKeywords = new Map();
+    keywordsSnapshot.forEach(doc => {
+      existingKeywords.set(doc.data().name, {ref: doc.ref, data: doc.data()});
+    });
+
+    // Batch fetch all existing tags
+    const tagQueries = new Set();
+    keywords.forEach(keyword => {
+      Object.entries(keyword).forEach(([key, val]) => {
+        if (tagCategories.includes(key)) {
+          tagQueries.add(JSON.stringify({name: val, category: key}));
+        }
+      });
+    });
+
+    const existingTags = new Map();
+    if (tagQueries.size > 0) {
+      const tagsSnapshot = await db.collection('tags')
+        .where(
+          'name',
+          'in',
+          Array.from(tagQueries)
+              // @ts-ignore
+              .map(q => JSON.parse(q).name)
+        )
         .get();
 
-      // Result from dataForSEO
+      tagsSnapshot.forEach(doc => {
+        const data = doc.data();
+        existingTags.set(`${data.tagCategory}-${data.name}`, {ref: doc.ref, data});
+      });
+    }
+
+    // Process keywords
+    for (const keyword of keywords) {
+      const existingKeyword = existingKeywords.get(keyword.Keyword);
+
+      // Handle search volume
       let searchVolume: KeywordResult | null = null;
-      if (!keywordQuery.empty) {
-        const existingKeyword = keywordQuery.docs[0].data();
-
-        if (!shouldFetchNewData) {
-          searchVolume = existingKeyword.searchVolume;
-        } else {
-          searchVolume = searchVolumeResult?.find((res) => res.keyword === keyword.Keyword) || null;
-        }
+      if (existingKeyword) {
+        searchVolume = !shouldFetchNewData
+          ? existingKeyword.data.searchVolume
+          : searchVolumeResult?.find((res) => res.keyword === keyword.Keyword) || null;
       }
 
-      let keywordRef;
-
-      if (keywordQuery.empty) {
-        // Create new keyword if it doesn't exist
-        keywordRef = db.collection('keywords').doc();
-      } else {
-        // Use existing keyword reference if it exists
-        keywordRef = keywordQuery.docs[0].ref;
-      }
+      // Create or get keyword reference
+      const keywordRef = existingKeyword
+        ? existingKeyword.ref
+        : db.collection('keywords').doc();
 
       keywordRefs.push(keywordRef);
 
       const keywordTagRefs = [];
 
+      // Process tags
       for (const [key, val] of Object.entries(keyword)) {
         if (tagCategories.includes(key)) {
-          // Create a new tag
           dashboardTagTitleAndNames.push(key + val);
 
-          // Query for existing tag
-          const tagQuery = await db.collection('tags')
-            .where('name', '==', val)
-            .where('tagCategory', '==', key)
-            .get();
+          const tagKey = `${key}-${val}`;
+          let tagRef = existingTags.get(tagKey)?.ref;
 
-          let tagRef;
-
-          const newTag = tagRefs.find(async (t) => {
-            const tg = await t.get()
-
-            // @ts-ignore
-            return tg.data.name === val && tg.data.tagCategory === key
-          });
-
-          if (!tagQuery.empty) {
-            // Use existing tag reference if it exists
-            tagRef = tagQuery.docs[0].ref;
-          } else {
-            // Create new tag if it doesn't exist
+          if (!tagRef) {
             tagRef = db.collection('tags').doc();
-            // Find the corresponding tag category
-            const categoryRef = tagCategoryRefs
-              .find(async ref => {
-                const thing = await ref.get();
+            // Find the category ref by checking the category name in the snapshot data
+            const categoryRef = tagCategoryRefs.find(async (ref) => {
+              const snapshot = await ref.get();
+              return snapshot.data()?.name === key;
+            });
 
-                return thing.data.name === key;
-              });
+            if (!categoryRef) {
+              logger.warn(`Category reference not found for ${key}`);
+              continue; // Skip this tag if category ref not found
+            }
 
             batch.set(tagRef, {
               name: val,
               tagCategoryRef: categoryRef,
               tagCategory: key,
             }, {merge: true});
-          }
 
-          if (!newTag) {
-            tagRefs.push(tagRef);
+            existingTags.set(tagKey, {ref: tagRef});
           }
 
           keywordTagRefs.push(tagRef);
         }
       }
 
-      if (!keywordQuery.empty) {
-        // Get existing keyword data
-        const existingKeyword = keywordQuery.docs[0].data();
-        const existingDashboardRefs = existingKeyword.dashboardRefs || [];
-        const row = keyword;
-        // Add monthly search data to row
-        if (searchVolume) {
-          searchVolume.monthly_searches?.forEach((searchData) => {
-            const monthStr = Months[searchData.month - 1]; // Convert month number (1-12) to three letter format
-            const yearStr = searchData.year.toString().slice(-2); // Get last two digits of year
-            const key = `${monthStr}-${yearStr}`;
-            row[key] = searchData.search_volume.toString();
-          });
-        }
+      // Prepare row data with monthly searches
+      const row = {...keyword};
+      if (searchVolume?.monthly_searches) {
+        searchVolume.monthly_searches.forEach((searchData) => {
+          const monthStr = Months[searchData.month - 1];
+          const yearStr = searchData.year.toString().slice(-2);
+          const key = `${monthStr}-${yearStr}`;
+          row[key] = searchData.search_volume.toString();
+        });
+      }
 
-
-        batch.set(keywordRef, {
-          name: keyword.Keyword,
-          dashboardRefs: [
-            ...existingDashboardRefs.filter((existing: any) => existing.dashboardName !== name),
-            {
-              dashboardId: dashboardRef.id,
-              dashboardName: name,
-              keyRow: {...row}
-            }
-          ],
-          tags: keywordTagRefs,
-          ...(searchVolume ? {searchVolume} : {}),
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-        }, {merge: true});
-      } else {
-        const row = keyword;
-        // Add monthly search data to row
-        if (searchVolume) {
-          searchVolume.monthly_searches?.forEach((searchData) => {
-            const monthStr = Months[searchData.month - 1]; // Convert month number (1-12) to three letter format
-            const yearStr = searchData.year.toString().slice(-2); // Get last two digits of year
-            const key = `${monthStr}-${yearStr}`;
-            row[key] = searchData.search_volume.toString();
-          });
-        }
-
-        // Use set with merge option to update existing or create new
-        batch.set(keywordRef, {
-          name: keyword.Keyword,
-          dashboardRefs: [{
+      // Set keyword data
+      const keywordData = {
+        name: keyword.Keyword,
+        dashboardRefs: [
+          ...(existingKeyword?.data.dashboardRefs || [])
+            .filter((existing: any) => existing.dashboardName !== name),
+          {
             dashboardId: dashboardRef.id,
             dashboardName: name,
-            keyRow: {...row}
-          }],
-          tags: keywordTagRefs,
-          ...(searchVolume ? {searchVolume} : {}), // Only include searchVolume if it exists
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp() // Add timestamp for tracking
-        }, {merge: true});
+            keyRow: row
+          }
+        ],
+        tags: keywordTagRefs,
       }
+
+      // Add to batch
+      batch.set(keywordRef, keywordData, {merge: true});
+
     }
 
-    // Update the dashboard with the list of keyword references
-    batch.update(dashboardRef, {
-      keywords: keywordRefs,
-    });
-
     logger.info('COMPLETE keywords');
+
+
+    // Update dashboard with keyword references
+    batch.set(dashboardRef, {
+      keywords: keywordRefs
+    }, {merge: true});
 
     // Commit the batch
     await batch.commit();
@@ -380,29 +367,29 @@ export const getDashboardByIdService = async (
   res: any,
 ) => {
   try {
-    let dashboardRef = db.collection('dashboards')
-      .where('name', '==', dashboardId);
-    let dashboardDoc = await dashboardRef.get();
+    let dashboardDoc = await db.collection('dashboards').doc(dashboardId).get();
 
-    // Check by name or id
-    if (dashboardDoc.empty) {
-      dashboardRef = db.collection('dashboards')
-        .where('id', '==', dashboardId);
-      dashboardDoc = await dashboardRef.get();
+
+    // If not found, try by name
+    if (!dashboardDoc.exists) {
+      const nameQuery = await db.collection('dashboards')
+        .where('name', '==', dashboardId)
+        .get();
+
+      if (nameQuery.empty) {
+        return res.status(404).send({error: 'dashboard not found'});
+      }
+      dashboardDoc = nameQuery.docs[0];
     }
 
-    if (dashboardDoc.empty) {
-      return res.status(404).send({error: 'dashboard not found'});
-    }
-
-    const dashboardData = dashboardDoc.docs[0].data();
+    const dashboardData = dashboardDoc.data();
     const tagCategoryRefs = dashboardData?.tagCategories || [];
 
     // Fetch tag categories and their tags
     const tagCategoriesPromises = tagCategoryRefs.map(async (ref: any) => {
       const categoryDoc = await ref.get();
       const categoryData = categoryDoc.data();
-      const tagRefs = categoryData.tags || [];
+      const tagRefs = categoryData?.tags || [];
 
       const tags = await Promise.all(
         tagRefs.map(async (tagRef: any) => {
@@ -421,14 +408,15 @@ export const getDashboardByIdService = async (
     const tagCategories = await Promise.all(tagCategoriesPromises);
 
     // Fetch keywords associated with this dashboard
-    const keywordsSnapshot = await Promise.all(
-      dashboardData.keywords.map((ref: any) => ref.get())
-    );
+    const keywords = [];
+    if (dashboardData?.keywords) {
+      const keywordsSnapshot = await Promise.all(
+        dashboardData.keywords.map((ref: any) => ref.get())
+      );
 
-    const keywords = await Promise.all(
-      keywordsSnapshot.map(async (doc) => {
+      for (const doc of keywordsSnapshot) {
         const keywordData = doc.data();
-        const tagRefs = keywordData.tags || [];
+        const tagRefs = keywordData?.tags || [];
 
         // Fetch all tags for this keyword
         const tags = await Promise.all(
@@ -436,30 +424,34 @@ export const getDashboardByIdService = async (
             const tagDoc = await tagRef.get();
             const tagData = tagDoc.data();
 
-            // Get the tag category for each tag
-            const tagCategoryDoc = await tagData.tagCategoryRef.get();
-
+            if (tagData?.tagCategoryRef) {
+              const tagCategoryDoc = await tagData.tagCategoryRef.get();
+              return {
+                id: tagDoc.id,
+                ...tagData,
+                tagCategoryRef: {
+                  id: tagCategoryDoc.id,
+                  ...tagCategoryDoc.data()
+                }
+              };
+            }
             return {
               id: tagDoc.id,
-              ...tagData,
-              tagCategoryRef: {
-                id: tagCategoryDoc.id,
-                ...tagCategoryDoc.data()
-              }
+              ...tagData
             };
           })
         );
 
-        return {
+        keywords.push({
           id: doc.id,
           ...keywordData,
           tags
-        }
-
-      }));
+        });
+      }
+    }
 
     return {
-      id: dashboardData.id,
+      id: dashboardDoc.id,
       name: dashboardData?.name,
       tagCategories: tagCategories,
       keywords: keywords,
