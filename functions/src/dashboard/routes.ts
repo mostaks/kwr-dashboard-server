@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-    createDashboardHandler,
+    createDashboardHandler, deleteDashboardByIdHandler,
     getDashboardByIdHandler,
     getDashboardsHandler,
     testHandler,
@@ -15,6 +15,7 @@ router.post('/api/dashboard/create', createDashboardHandler);
 // Read item
 router.get('/api/dashboards', getDashboardsHandler);
 router.get('/api/dashboard/:dashboard_id', getDashboardByIdHandler);
-
+// Delete item
+router.delete('/api/dashboard/:dashboard_id', deleteDashboardByIdHandler);
 // Export the router
 export default router;

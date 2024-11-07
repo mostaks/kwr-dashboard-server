@@ -1,16 +1,17 @@
 import * as functions from 'firebase-functions';
-import { db } from '..';
+import {db} from '..';
 import {
   createDashboardService,
+  deleteDashboardByIdService,
   getDashboardByIdService,
 } from './dashboard.service';
 
 export const testHandler = async (req: any, res: any) => {
   try {
-    return await res.status(200).send({ greeting: 'hello test' });
+    return await res.status(200).send({greeting: 'hello test'});
   } catch (error) {
     console.error('Error greeting:', error);
-    return res.status(500).send({ error: 'Server failed to greet client' });
+    return res.status(500).send({error: 'Server failed to greet client'});
   }
 };
 
@@ -24,10 +25,10 @@ export const createDashboardHandler = functions
       const dashboardRef = await createDashboardService(req.body);
       return res
         .status(200)
-        .json({ id: dashboardRef.id, message: 'dashboard created successfully' });
+        .json({id: dashboardRef.id, message: 'dashboard created successfully'});
     } catch (error) {
       console.error('Error creating dashboard:', error);
-      return res.status(500).json({ error: 'Failed to create dashboard' });
+      return res.status(500).json({error: 'Failed to create dashboard'});
     }
   });
 
@@ -38,11 +39,11 @@ export const getDashboardsHandler = async (req: any, res: any) => {
 
     if (snapshot.empty) {
       console.log('No matching documents found.');
-      return res.status(200).json({ dashboards: [] });
+      return res.status(200).json({dashboards: []});
     }
     const items: any[] = [];
     snapshot.forEach((doc) => {
-      items.push({ id: doc.id, ...doc.data() }); // Get document ID and data
+      items.push({id: doc.id, ...doc.data()}); // Get document ID and data
     });
 
     const response = {
@@ -62,6 +63,36 @@ export const getDashboardByIdHandler = async (req: any, res: any) => {
     return res.status(200).send(dashboard);
   } catch (error) {
     console.error('Error fetching dashboard:', error);
-    return res.status(500).send({ error: 'Failed to fetch dashboard' });
+    return res.status(500).send({error: 'Failed to fetch dashboard'});
+  }
+};
+
+export const deleteDashboardByIdHandler = async (req: any, res: any): Promise<void> => {
+  const dashboardId = req.params?.dashboard_id;
+
+  if (!dashboardId) {
+    res.status(400).json({error: 'Dashboard ID is required'});
+    return;
+  }
+
+  try {
+    await deleteDashboardByIdService(dashboardId, db);
+
+    res.status(200).json({
+      message: `Dashboard ${dashboardId} successfully deleted`,
+      dashboardId
+    });
+  } catch (error: any) {
+    console.error('Error in deleteDashboardByIdHandler:', error);
+
+    if (error.message.includes('not found')) {
+      res.status(404).json({error: error.message});
+      return;
+    }
+
+    res.status(500).json({
+      error: 'Internal server error while deleting dashboard',
+      details: error.message
+    });
   }
 };
