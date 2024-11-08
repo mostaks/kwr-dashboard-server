@@ -270,7 +270,7 @@ export const updateDashboardService = async (
       updateData.password = body.password;
     }
     if (body.title !== undefined) {
-      updateData.title = body.title;
+      updateData.name = body.title;
     }
 
     await dashboardRef.update(updateData);
