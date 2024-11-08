@@ -246,7 +246,7 @@ export const updateDashboardService = async (
     visibleTagCategories?: string[],
     logo?: string,
     password?: string,
-    title?: string,
+    name?: string,
   }
 ) => {
   logger.info('dashboard.service.updateDashboardService');
@@ -261,16 +261,20 @@ export const updateDashboardService = async (
     const updateData: Record<string, any> = {};
 
     if (body.visibleTagCategories !== undefined) {
+      logger.info(`Visible tag categories ${body.visibleTagCategories}`)
       updateData.visibleTagCategories = body.visibleTagCategories;
     }
     if (body.logo !== undefined) {
+      logger.info(`Logo ${body.logo}`)
       updateData.logo = body.logo;
     }
     if (body.password !== undefined) {
+      logger.info(`Password ${body.password}`)
       updateData.password = body.password;
     }
-    if (body.title !== undefined) {
-      updateData.name = body.title;
+      logger.info(`Name ${JSON.stringify(body)}`)
+    if (body.name !== undefined) {
+      updateData.name = body.name;
     }
 
     await dashboardRef.update(updateData);

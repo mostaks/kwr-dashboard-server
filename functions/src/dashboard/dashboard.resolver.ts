@@ -23,7 +23,9 @@ export const createDashboardHandler = functions
   })
   .https.onRequest(async (req: any, res: any) => {
     try {
-      const dashboardRef = await createDashboardService(req.body);
+      const dashboardRef = await createDashboardService(
+        req.body
+      );
       return res
         .status(200)
         .json({id: dashboardRef.id, message: 'dashboard created successfully'});
@@ -101,17 +103,15 @@ export const deleteDashboardByIdHandler = async (req: any, res: any): Promise<vo
 export const updateDashboardHandler = async (req: any, res: any) => {
   try {
     const dashboardId = req.params?.dashboard_id;
-    const {visibleTagCategories, logo, password} = req.body;
 
     if (!dashboardId) {
       return res.status(400).json({error: 'Dashboard ID is required'});
     }
 
-    const dashboardRef = await updateDashboardService(dashboardId, {
-      visibleTagCategories,
-      logo,
-      password
-    });
+    const dashboardRef = await updateDashboardService(
+      dashboardId,
+      req.body
+    );
 
     return res.status(200).json({
       id: dashboardRef.id,
