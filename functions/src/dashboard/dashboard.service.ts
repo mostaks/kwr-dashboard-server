@@ -191,6 +191,9 @@ export const getDashboardByIdService = async (
     return {
       id: dashboardDoc.id,
       name: dashboardData?.name,
+      logo: dashboardData?.logo,
+      password: dashboardData?.password,
+      visibleTagCategories: dashboardData?.visibleTagCategories,
       tagCategories,
       keywords,
     };
