@@ -108,11 +108,11 @@ export const getDashboardByIdService = async (
     // Fetch all references in parallel
     const [tagCategoryDocs, keywordDocs] = await Promise.all([
       // Get all tag categories in one batch
-      dashboardData?.tagCategories?.length
+      dashboardData?.tagCategories && dashboardData?.tagCategories?.length
         ? db.getAll(...dashboardData.tagCategories)
         : [],
       // Get all keywords in one batch
-      dashboardData?.keywords?.length
+      dashboardData?.keywords && dashboardData?.keywords?.length
         ? db.getAll(...dashboardData.keywords)
         : []
     ]);
@@ -234,5 +234,43 @@ export const deleteDashboardByIdService = async (
   } catch (error) {
     logger.error(`Error deleting dashboard ${dashboardId}:`, error);
     throw error;
+  }
+};
+
+export const updateDashboardService = async (
+  dashboardId: string,
+  body: {
+    visibleTagCategories?: string[],
+    logo?: string,
+    password?: string
+  }
+) => {
+  logger.info('dashboard.service.updateDashboardService');
+  try {
+    const dashboardRef = db.collection('dashboards').doc(dashboardId);
+    const dashboardDoc = await dashboardRef.get();
+
+    if (!dashboardDoc.exists) {
+      throw new Error('Dashboard not found');
+    }
+
+    const updateData: Record<string, any> = {};
+
+    if (body.visibleTagCategories !== undefined) {
+      updateData.visibleTagCategories = body.visibleTagCategories;
+    }
+    if (body.logo !== undefined) {
+      updateData.logo = body.logo;
+    }
+    if (body.password !== undefined) {
+      updateData.password = body.password;
+    }
+
+    await dashboardRef.update(updateData);
+    return dashboardRef;
+  } catch (error: any) {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    throw new Error(`${errorCode}: ${errorMessage}`);
   }
 };

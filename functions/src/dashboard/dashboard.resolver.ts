@@ -4,6 +4,7 @@ import {
   createDashboardService,
   deleteDashboardByIdService,
   getDashboardByIdService,
+  updateDashboardService,
 } from './dashboard.service';
 
 export const testHandler = async (req: any, res: any) => {
@@ -94,5 +95,35 @@ export const deleteDashboardByIdHandler = async (req: any, res: any): Promise<vo
       error: 'Internal server error while deleting dashboard',
       details: error.message
     });
+  }
+};
+
+export const updateDashboardHandler = async (req: any, res: any) => {
+  try {
+    const dashboardId = req.params?.dashboard_id;
+    const {visibleTagCategories, logo, password} = req.body;
+
+    if (!dashboardId) {
+      return res.status(400).json({error: 'Dashboard ID is required'});
+    }
+
+    const dashboardRef = await updateDashboardService(dashboardId, {
+      visibleTagCategories,
+      logo,
+      password
+    });
+
+    return res.status(200).json({
+      id: dashboardRef.id,
+      message: 'Dashboard updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating dashboard:', error);
+
+    if (error instanceof Error && error.message.includes('not found')) {
+      return res.status(404).json({error: error.message});
+    }
+
+    return res.status(500).json({error: 'Failed to update dashboard'});
   }
 };
