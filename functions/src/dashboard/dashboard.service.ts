@@ -1,39 +1,32 @@
-import {db} from '..';
+import { db } from '..';
 import admin from 'firebase-admin';
-import {logger} from "firebase-functions";
+import { logger } from 'firebase-functions';
 import {
   createOrUpdateDashboard,
   createOrUpdateTagCategories,
-  fetchDataForSEO, ICreateDashboardArgs,
-  processKeywordsAndTags
-} from "./dashboard";
+  fetchDataForSEO,
+  ICreateDashboardArgs,
+  processKeywordsAndTags,
+} from './dashboard';
 
 export const createDashboardService = async (body: ICreateDashboardArgs) => {
   logger.info('dashboard.service.createDashboardService');
   try {
-    const {
-      name,
-      tagCategories,
-      keywords,
-      location_name,
-    } = body;
+    const { name, tagCategories, keywords, location_name } = body;
     // Start a new batch
     const batch = db.batch();
 
-    const {
-      dashboardRef,
-      dashboardQuery
-    } = await createOrUpdateDashboard(
+    const { dashboardRef, dashboardQuery } = await createOrUpdateDashboard(
       batch,
       db,
-      body
+      body,
     );
 
     const tagCategoryRefs = await createOrUpdateTagCategories(
       tagCategories,
       dashboardRef,
       batch,
-      db
+      db,
     );
 
     let shouldFetchNewData = true;
@@ -52,7 +45,7 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
       location_name,
       dashboardQuery, // You'll need to make dashboardQuery available from the createOrUpdateDashboard function
       name,
-      shouldFetchNewData
+      shouldFetchNewData,
     );
 
     const { keywordRefs } = await processKeywordsAndTags(
@@ -64,13 +57,17 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
       searchVolumeResult,
       shouldFetchNewData,
       batch,
-      db
-    )
+      db,
+    );
 
     // Update dashboard with keyword references
-    batch.set(dashboardRef, {
-      keywords: keywordRefs
-    }, {merge: true});
+    batch.set(
+      dashboardRef,
+      {
+        keywords: keywordRefs,
+      },
+      { merge: true },
+    );
 
     // Commit the batch
     await batch.commit();
@@ -92,13 +89,14 @@ export const getDashboardByIdService = async (
 
     // If not found, try by name
     if (!dashboardDoc.exists) {
-      const nameQuery = await db.collection('dashboards')
+      const nameQuery = await db
+        .collection('dashboards')
         .where('name', '==', dashboardId)
         .limit(1)
         .get();
 
       if (nameQuery.empty) {
-        return res.status(404).send({error: 'dashboard not found'});
+        return res.status(404).send({ error: 'dashboard not found' });
       }
       dashboardDoc = nameQuery.docs[0];
     }
@@ -114,7 +112,7 @@ export const getDashboardByIdService = async (
       // Get all keywords in one batch
       dashboardData?.keywords && dashboardData?.keywords?.length
         ? db.getAll(...dashboardData.keywords)
-        : []
+        : [],
     ]);
 
     // Process tag categories and their tags
@@ -128,10 +126,10 @@ export const getDashboardByIdService = async (
       return {
         id: categoryDoc.id,
         name: categoryData?.name,
-        tags: tagDocs?.map(tagDoc => ({
+        tags: tagDocs?.map((tagDoc) => ({
           id: tagDoc?.id,
-          ...tagDoc.data()
-        }))
+          ...tagDoc.data(),
+        })),
       };
     });
 
@@ -142,7 +140,7 @@ export const getDashboardByIdService = async (
         return {
           id: doc.id,
           ...keywordData,
-          tags: []
+          tags: [],
         };
       }
 
@@ -151,18 +149,21 @@ export const getDashboardByIdService = async (
 
       // Get all tag categories for tags that have them
       const tagCategoryRefs = tagDocs
-        .map(t => t.data()?.tagCategoryRef)
-        .filter(ref => ref);
+        .map((t) => t.data()?.tagCategoryRef)
+        .filter((ref) => ref);
 
       const tagCategoryDocs = tagCategoryRefs.length
         ? await db.getAll(...tagCategoryRefs)
         : [];
 
       const tagCategoryMap = new Map(
-        tagCategoryDocs.map(doc => [doc.ref.path, {id: doc.id, ...doc.data()}])
+        tagCategoryDocs.map((doc) => [
+          doc.ref.path,
+          { id: doc.id, ...doc.data() },
+        ]),
       );
 
-      const tags = tagDocs.map(tagDoc => {
+      const tags = tagDocs.map((tagDoc) => {
         const tagData = tagDoc.data();
         const tagCategoryRef = tagData?.tagCategoryRef;
 
@@ -170,22 +171,22 @@ export const getDashboardByIdService = async (
           id: tagDoc.id,
           ...tagData,
           ...(tagCategoryRef && {
-            tagCategoryRef: tagCategoryMap.get(tagCategoryRef.path)
-          })
+            tagCategoryRef: tagCategoryMap.get(tagCategoryRef.path),
+          }),
         };
       });
 
       return {
         id: doc.id,
         ...keywordData,
-        tags
+        tags,
       };
     });
 
     // Wait for all processing to complete
     const [tagCategories, keywords] = await Promise.all([
       Promise.all(tagCategoryPromises),
-      Promise.all(keywordPromises)
+      Promise.all(keywordPromises),
     ]);
 
     return {
@@ -193,6 +194,7 @@ export const getDashboardByIdService = async (
       name: dashboardData?.name,
       logo: dashboardData?.logo,
       password: dashboardData?.password,
+      suffix: dashboardData?.suffix,
       visibleTagCategories: dashboardData?.visibleTagCategories,
       tagCategories,
       keywords,
@@ -204,9 +206,35 @@ export const getDashboardByIdService = async (
   }
 };
 
+export const getDashboardBySuffixService = async (
+  dashboardSuffix: string,
+  res: any,
+) => {
+  try {
+    const suffixQuery = await db
+      .collection('dashboards')
+      .where('suffix', '==', dashboardSuffix)
+      .limit(1)
+      .get();
+
+    if (suffixQuery.empty) {
+      return res.status(404).send({ error: 'dashboard not found' });
+    }
+    const dashboardDoc = suffixQuery.docs[0];
+
+    const dashboardData = await getDashboardByIdService(dashboardDoc.id, res);
+
+    return dashboardData;
+  } catch (error: any) {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    throw new Error(`${errorCode} ${errorMessage}`);
+  }
+};
+
 export const deleteDashboardByIdService = async (
   dashboardId: string,
-  db: admin.firestore.Firestore
+  db: admin.firestore.Firestore,
 ): Promise<void> => {
   logger.info(`START delete dashboard ${dashboardId}`);
 
@@ -243,11 +271,11 @@ export const deleteDashboardByIdService = async (
 export const updateDashboardService = async (
   dashboardId: string,
   body: {
-    visibleTagCategories?: string[],
-    logo?: string,
-    password?: string,
-    name?: string,
-  }
+    visibleTagCategories?: string[];
+    logo?: string;
+    password?: string;
+    name?: string;
+  },
 ) => {
   logger.info('dashboard.service.updateDashboardService');
   try {
@@ -261,18 +289,18 @@ export const updateDashboardService = async (
     const updateData: Record<string, any> = {};
 
     if (body.visibleTagCategories !== undefined) {
-      logger.info(`Visible tag categories ${body.visibleTagCategories}`)
+      logger.info(`Visible tag categories ${body.visibleTagCategories}`);
       updateData.visibleTagCategories = body.visibleTagCategories;
     }
     if (body.logo !== undefined) {
-      logger.info(`Logo ${body.logo}`)
+      logger.info(`Logo ${body.logo}`);
       updateData.logo = body.logo;
     }
     if (body.password !== undefined) {
-      logger.info(`Password ${body.password}`)
+      logger.info(`Password ${body.password}`);
       updateData.password = body.password;
     }
-      logger.info(`Name ${JSON.stringify(body)}`)
+    logger.info(`Name ${JSON.stringify(body)}`);
     if (body.name !== undefined) {
       updateData.name = body.name;
     }
@@ -283,5 +311,32 @@ export const updateDashboardService = async (
     const errorCode = error.code;
     const errorMessage = error.message;
     throw new Error(`${errorCode}: ${errorMessage}`);
+  }
+};
+
+export const verifyDashboardAccessService = async (body: {
+  suffix: string;
+  password: string;
+}) => {
+  logger.info('dashboard.service.verifyDashboardAccessService');
+  console.log('check body::', body);
+  try {
+    const { suffix, password } = body;
+    const suffixQuery = await db
+      .collection('dashboards')
+      .where('suffix', '==', suffix)
+      .limit(1)
+      .get();
+    const dashboardDoc = suffixQuery.docs[0];
+    const dashboardData = dashboardDoc.data();
+
+    if (dashboardData.password === password) {
+      return true;
+    }
+    return false;
+  } catch (error: any) {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    throw new Error(`${errorCode} ${errorMessage}`);
   }
 };
