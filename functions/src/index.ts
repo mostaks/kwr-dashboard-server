@@ -33,6 +33,7 @@ app.use(routes);
 
 const server = app.listen();
 
+// Timeout 9 minutes
 server.timeout = 540000
 
 // Export the app as a Cloud Function
