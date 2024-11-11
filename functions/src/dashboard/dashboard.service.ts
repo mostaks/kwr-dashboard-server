@@ -6,6 +6,7 @@ import {
   createOrUpdateTagCategories,
   fetchDataForSEO,
   ICreateDashboardArgs,
+  monthlyKeywordsUpdate,
   processKeywordsAndTags,
 } from './dashboard';
 
@@ -43,12 +44,11 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
     const searchVolumeResult = await fetchDataForSEO(
       keywords,
       location_name,
-      dashboardQuery, // You'll need to make dashboardQuery available from the createOrUpdateDashboard function
       name,
       shouldFetchNewData,
     );
 
-    const { keywordRefs } = await processKeywordsAndTags(
+    const {keywordRefs} = await processKeywordsAndTags(
       keywords,
       dashboardRef,
       name,
@@ -102,6 +102,8 @@ export const getDashboardByIdService = async (
     }
 
     const dashboardData = dashboardDoc.data();
+
+    await monthlyKeywordsUpdate(dashboardData, dashboardId, dashboardDoc, db);
 
     // Fetch all references in parallel
     const [tagCategoryDocs, keywordDocs] = await Promise.all([

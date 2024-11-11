@@ -1,4 +1,5 @@
 import admin, {firestore} from "firebase-admin";
+import moment from 'moment';
 import {logger} from "firebase-functions";
 import serviceAccount from "../permissions.json";
 import {chunkArray} from "../utils";
@@ -172,7 +173,6 @@ export const createOrUpdateTagCategories = async (
 export const fetchDataForSEO = async (
   keywords: Record<string, string>[],
   location_name: string,
-  dashboardQuery: admin.firestore.QuerySnapshot,
   name: string,
   shouldFetchNewData: boolean
 ): Promise<KeywordResult[] | null> => {
@@ -181,6 +181,8 @@ export const fetchDataForSEO = async (
   let searchVolumeResponse: SeacrhVolumeResponse | null = null;
 
   if (shouldFetchNewData) {
+    const date_from = moment().subtract(3, 'years')
+      .format('YYYY-MM-DD');
     try {
       const response = await fetch('https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live', {
         method: 'POST',
@@ -194,7 +196,8 @@ export const fetchDataForSEO = async (
           {
             "keywords": keywords.map(({Keyword}: any) => Keyword),
             "location_name": location_name || 'Australia',
-            "language_name": "English"
+            "language_name": "English",
+            "date_from": date_from
           }
         ])
       });
@@ -346,7 +349,7 @@ export const processKeywordsAndTags = async (
     // Prepare row data with monthly searches
     logger.info('Prepare row data with monthly searches');
     const row = {...keyword};
-    if (searchVolume?.monthly_searches) {
+    if (searchVolume && searchVolume?.monthly_searches) {
       searchVolume.monthly_searches.forEach((searchData) => {
         const monthStr = Months[searchData.month - 1];
         const yearStr = searchData.year.toString().slice(-2);
@@ -380,3 +383,78 @@ export const processKeywordsAndTags = async (
   logger.info('COMPLETE keywords');
   return {keywordRefs, dashboardTagTitleAndNames};
 };
+
+export const monthlyKeywordsUpdate = async (
+  dashboardData: FirebaseFirestore.DocumentData | undefined,
+  dashboardId: string,
+  dashboardDoc: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData, FirebaseFirestore.DocumentData>,
+  db: admin.firestore.Firestore,
+): Promise<void> => {
+  // Check if keywords needs updating (more than a month old)
+  // If so update with the latest data from
+  const lastUpdated = dashboardData?.lastUpdated?.toDate();
+  let shouldUpdate = false;
+  if (lastUpdated) {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    shouldUpdate = lastUpdated < oneMonthAgo;
+  }
+
+  if (shouldUpdate && dashboardData?.keywords?.length) {
+    // Start a batch for updates
+    const batch = db.batch();
+
+    // Fetch new SEO data
+    const searchVolumeResult = await fetchDataForSEO(
+      dashboardData.keywords.map((ref: any) => ref.data.name), // assuming keyword IDs match the keywords
+      dashboardData.location_name,
+      dashboardData.name,
+      true
+    );
+
+    // Update each keyword with new data
+    for (const keywordRef of dashboardData.keywords) {
+      const keywordDoc = await keywordRef.get();
+      const keywordData = keywordDoc.data();
+
+      if (searchVolumeResult && searchVolumeResult[keywordData.keyword]) {
+        const searchVolume = searchVolumeResult[keywordData.keyword];
+        const row = {...keywordData};
+
+        if (searchVolume?.monthly_searches) {
+          searchVolume.monthly_searches.forEach((searchData) => {
+            const monthStr = Months[searchData.month - 1];
+            const yearStr = searchData.year.toString().slice(-2);
+            const key = `${monthStr}-${yearStr}`;
+            row[key] = searchData.search_volume.toString();
+          });
+
+          // Find and update the specific dashboardRef
+          const dashboardRefIndex = keywordData.dashboardRefs.findIndex(
+            (ref: any) => ref.dashboardId === dashboardId
+          );
+
+          if (dashboardRefIndex !== -1) {
+            const updatedDashboardRefs = [...keywordData.dashboardRefs];
+            updatedDashboardRefs[dashboardRefIndex] = {
+              ...updatedDashboardRefs[dashboardRefIndex],
+              keyRows: row
+            };
+
+            batch.update(keywordRef, {
+              searchVolume: row,
+              dashboardRefs: updatedDashboardRefs
+            });
+          }
+        }
+      }
+    }
+
+    // Update dashboard lastUpdated
+    batch.update(dashboardDoc.ref, {
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    await batch.commit();
+  }
+}
