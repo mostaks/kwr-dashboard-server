@@ -75,29 +75,6 @@ export const getDashboardHandler = async (req: any, res: any) => {
   }
 };
 
-// export const getDashboardByIdHandler = async (req: any, res: any) => {
-//   try {
-//     const dashboardId = req.params?.dashboard_id;
-//     const dashboard = await getDashboardByIdService(dashboardId, res);
-
-//     return res.status(200).send(dashboard);
-//   } catch (error) {
-//     console.error('Error fetching dashboard:', error);
-//     return res.status(500).send({ error: 'Failed to fetch dashboard' });
-//   }
-// };
-
-// export const getDashboardBySuffixHandler = async (req: any, res: any) => {
-//   try {
-//     const suffix = req.params?.suffix;
-//     const dashboard = await getDashboardBySuffixService(suffix, res);
-//     return res.status(200).send(dashboard);
-//   } catch (error) {
-//     console.error('Error fetching dashboard:', error);
-//     return res.status(500).send({ error: 'Failed to fetch dashboard' });
-//   }
-// };
-
 export const deleteDashboardByIdHandler = async (
   req: any,
   res: any,
@@ -158,7 +135,6 @@ export const updateDashboardHandler = async (req: any, res: any) => {
 
 export const verifyDashboardAccessHandler = async (req: any, res: any) => {
   try {
-    console.log('checkkkkk1', req);
     const isVerified = await verifyDashboardAccessService(req.body);
 
     return res.status(200).send(isVerified);

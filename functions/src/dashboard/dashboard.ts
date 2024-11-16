@@ -1,10 +1,10 @@
-import admin, {firestore} from "firebase-admin";
+import admin, { firestore } from "firebase-admin";
 import moment from 'moment';
-import {logger} from "firebase-functions";
+import { logger } from "firebase-functions";
 import serviceAccount from "../permissions.json";
-import {chunkArray} from "../utils";
-import QuerySnapshot = firestore.QuerySnapshot;
+import { chunkArray } from "../utils";
 import firebase from "firebase/compat";
+import QuerySnapshot = firestore.QuerySnapshot;
 import DocumentData = firebase.firestore.DocumentData;
 
 type MonthlySearch = {
@@ -90,10 +90,13 @@ export const createOrUpdateDashboard = async (
   batch: admin.firestore.WriteBatch,
   db: admin.firestore.Firestore,
   body: ICreateDashboardArgs,
-): Promise<{ dashboardRef: admin.firestore.DocumentReference, dashboardQuery: QuerySnapshot<DocumentData, DocumentData> }> => {
+): Promise<{
+  dashboardRef: admin.firestore.DocumentReference,
+  dashboardQuery: QuerySnapshot<DocumentData, DocumentData>
+}> => {
   logger.info('START dashboards');
 
-  const {name, suffix, logo, password, visibleTagCategories} = body;
+  const { name, suffix, logo, password, visibleTagCategories } = body;
 
   const dashboardQuery = await db.collection('dashboards')
     .where('name', '==', name)
@@ -115,7 +118,7 @@ export const createOrUpdateDashboard = async (
         lastUpdated: timestamp,
         createdAt: timestamp,
       },
-      {merge: true}
+      { merge: true }
     );
   } else {
     dashboardRef = dashboardQuery.docs[0].ref;
@@ -130,7 +133,7 @@ export const createOrUpdateDashboard = async (
   }
 
   logger.info('COMPLETE dashboards');
-  return {dashboardRef, dashboardQuery}
+  return { dashboardRef, dashboardQuery }
 };
 
 export const createOrUpdateTagCategories = async (
@@ -151,10 +154,10 @@ export const createOrUpdateTagCategories = async (
     let categoryRef: admin.firestore.DocumentReference;
     if (categoryQuery.empty) {
       categoryRef = db.collection('tagCategories').doc();
-      batch.set(categoryRef, {name: category}, {merge: true});
+      batch.set(categoryRef, { name: category }, { merge: true });
     } else {
       categoryRef = categoryQuery.docs[0].ref;
-      batch.update(categoryRef, {name: category});
+      batch.update(categoryRef, { name: category });
     }
 
     tagCategoryRefs.push(categoryRef);
@@ -163,7 +166,7 @@ export const createOrUpdateTagCategories = async (
   // Update dashboard with tag category references
   batch.set(dashboardRef, {
     tagCategories: tagCategoryRefs
-  }, {merge: true});
+  }, { merge: true });
 
   logger.info('COMPLETE tagCategories');
 
@@ -178,11 +181,17 @@ export const fetchDataForSEO = async (
 ): Promise<KeywordResult[] | null> => {
   logger.info('START dataForSEO');
 
-  let searchVolumeResponse: SeacrhVolumeResponse | null = null;
+  if (!shouldFetchNewData) {
+    console.log(`Skipping DataForSEO API call for dashboard ${name} as data is less than 1 month old`);
+    return null;
+  }
 
-  if (shouldFetchNewData) {
-    const date_from = moment().subtract(3, 'years')
-      .format('YYYY-MM-DD');
+  const BATCH_SIZE = 1000; // DataForSEO API limit
+  const keywordBatches = chunkArray(keywords, BATCH_SIZE);
+  let allResults: KeywordResult[] = [];
+  const date_from = moment().subtract(3, 'years').format('YYYY-MM-DD');
+
+  for (const batch of keywordBatches) {
     try {
       const response = await fetch('https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live', {
         method: 'POST',
@@ -194,7 +203,7 @@ export const fetchDataForSEO = async (
         },
         body: JSON.stringify([
           {
-            "keywords": keywords.map(({Keyword}: any) => Keyword),
+            "keywords": batch.map(({ Keyword }: any) => Keyword),
             "location_name": location_name || 'Australia',
             "language_name": "English",
             "date_from": date_from
@@ -202,17 +211,19 @@ export const fetchDataForSEO = async (
         ])
       });
 
-      searchVolumeResponse = await response.json();
+      const searchVolumeResponse: SeacrhVolumeResponse = await response.json();
+      const batchResults = searchVolumeResponse?.tasks[0]?.result;
+
+      if (batchResults) {
+        allResults = [...allResults, ...batchResults];
+      }
     } catch (error) {
-      console.error(`Error fetching DataForSEO data for dashboard ${name}:`, error);
-      searchVolumeResponse = null;
+      console.error(`Error fetching DataForSEO data for dashboard ${name} batch:`, error);
     }
-  } else {
-    console.log(`Skipping DataForSEO API call for dashboard ${name} as data is less than 1 month old`);
   }
 
   logger.info('COMPLETE dataForSEO');
-  return searchVolumeResponse?.tasks[0]?.result || null;
+  return allResults.length > 0 ? allResults : null;
 };
 
 export const processKeywordsAndTags = async (
@@ -252,7 +263,7 @@ export const processKeywordsAndTags = async (
   // Create a map of existing keywords
   const existingKeywords = new Map();
   allKeywordDocs.forEach(doc => {
-    existingKeywords.set(doc.data()?.name, {ref: doc.ref, data: doc.data()});
+    existingKeywords.set(doc.data()?.name, { ref: doc.ref, data: doc.data() });
   });
 
   logger.info('Batch fetch all existing tags');
@@ -261,7 +272,7 @@ export const processKeywordsAndTags = async (
   keywords.forEach(keyword => {
     Object.entries(keyword).forEach(([key, val]) => {
       if (tagCategories.includes(key)) {
-        tagQueries.add(JSON.stringify({name: val, category: key}));
+        tagQueries.add(JSON.stringify({ name: val, category: key }));
       }
     });
   });
@@ -285,7 +296,7 @@ export const processKeywordsAndTags = async (
       // Add results to map
       chunkSnapshot.forEach(doc => {
         const data = doc.data();
-        existingTags.set(`${data.tagCategory}-${data.name}`, {ref: doc.ref, data});
+        existingTags.set(`${data.tagCategory}-${data.name}`, { ref: doc.ref, data });
       });
     }
   }
@@ -337,9 +348,9 @@ export const processKeywordsAndTags = async (
             name: val,
             tagCategoryRef: categoryRef,
             tagCategory: key,
-          }, {merge: true});
+          }, { merge: true });
 
-          existingTags.set(tagKey, {ref: tagRef});
+          existingTags.set(tagKey, { ref: tagRef });
         }
 
         keywordTagRefs.push(tagRef);
@@ -348,7 +359,7 @@ export const processKeywordsAndTags = async (
 
     // Prepare row data with monthly searches
     logger.info('Prepare row data with monthly searches');
-    const row = {...keyword};
+    const row = { ...keyword };
     if (searchVolume && searchVolume?.monthly_searches) {
       searchVolume.monthly_searches.forEach((searchData) => {
         const monthStr = Months[searchData.month - 1];
@@ -376,12 +387,12 @@ export const processKeywordsAndTags = async (
 
     // Add to batch
     logger.info('Add to batch');
-    batch.set(keywordRef, keywordData, {merge: true});
+    batch.set(keywordRef, keywordData, { merge: true });
 
   }
 
   logger.info('COMPLETE keywords');
-  return {keywordRefs, dashboardTagTitleAndNames};
+  return { keywordRefs, dashboardTagTitleAndNames };
 };
 
 export const monthlyKeywordsUpdate = async (
@@ -419,7 +430,7 @@ export const monthlyKeywordsUpdate = async (
 
       if (searchVolumeResult && searchVolumeResult[keywordData.keyword]) {
         const searchVolume = searchVolumeResult[keywordData.keyword];
-        const row = {...keywordData};
+        const row = { ...keywordData };
 
         if (searchVolume?.monthly_searches) {
           searchVolume.monthly_searches.forEach((searchData) => {
