@@ -224,6 +224,8 @@ export const fetchDataForSEO = async (
     }
   }
 
+  console.log(allResults);
+
   logger.info('COMPLETE dataForSEO');
   return allResults.length > 0 ? allResults : null;
 };
@@ -310,10 +312,10 @@ export const processKeywordsAndTags = async (
 
     // Handle search volume
     let searchVolume: KeywordResult | null = null;
-    if (existingKeyword) {
-      searchVolume = !shouldFetchNewData
-        ? existingKeyword.data.searchVolume
-        : searchVolumeResult?.find((res) => res.keyword === keyword.Keyword) || null;
+    if (!shouldFetchNewData && existingKeyword) {
+      searchVolume = existingKeyword.data.searchVolume;
+    } else {
+      searchVolume = searchVolumeResult?.find((res) => res.keyword === keyword.Keyword) || null;
     }
 
     // Create or get keyword reference
@@ -367,8 +369,10 @@ export const processKeywordsAndTags = async (
         const monthStr = Months[searchData.month - 1];
         const yearStr = searchData.year.toString().slice(-2);
         const key = `${monthStr}-${yearStr}`;
+        console.log(key);
         row[key] = searchData.search_volume.toString();
       });
+      console.log(row);
     }
 
     // Set keyword data
@@ -386,6 +390,8 @@ export const processKeywordsAndTags = async (
       ],
       tags: keywordTagRefs,
     }
+
+    console.log(keywordData.dashboardRefs[0].keyRow)
 
     // Add to batch
     logger.info('Add to batch');
