@@ -206,6 +206,8 @@ export const fetchDataForSEO = async (
             "keywords": batch.map(({ Keyword }: any) => Keyword),
             "location_name": location_name || 'Australia',
             "language_name": "English",
+            "search_partners": false,
+            "include_adult_keywords": true,
             "date_from": date_from
           }
         ])
