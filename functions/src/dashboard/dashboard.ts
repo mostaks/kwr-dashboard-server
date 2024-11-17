@@ -208,6 +208,7 @@ export const fetchDataForSEO = async (
             "language_name": "English",
             "search_partners": false,
             "include_adult_keywords": true,
+            "sort_by": "relevance",
             "date_from": date_from
           }
         ])
