@@ -117,11 +117,25 @@ export const updateDashboardHandler = async (req: any, res: any) => {
     }
 
     const dashboardRef = await updateDashboardService(dashboardId, req.body);
+    const dashboardDoc = await dashboardRef.get();
+    const dashboardData = dashboardDoc.data();
 
-    return res.status(200).json({
-      id: dashboardRef.id,
-      message: 'Dashboard updated successfully',
-    });
+    if (dashboardData) {
+      return res.status(200).json({
+        title: dashboardData.name,
+        suffix: dashboardData.suffix,
+        password: dashboardData.password,
+        logo: dashboardData.logo,
+        visibleTagCategories: dashboardData.visibleTagCategories,
+      });
+    } else {
+      return res.status(200).json({
+        error: {
+          code: '',
+          message: 'Dashboard update failed',
+        },
+      });
+    }
   } catch (error) {
     console.error('Error updating dashboard:', error);
 
