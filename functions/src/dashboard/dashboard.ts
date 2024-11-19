@@ -225,8 +225,6 @@ export const fetchDataForSEO = async (
     }
   }
 
-  console.log(allResults);
-
   logger.info('COMPLETE dataForSEO');
   return allResults.length > 0 ? allResults : null;
 };
