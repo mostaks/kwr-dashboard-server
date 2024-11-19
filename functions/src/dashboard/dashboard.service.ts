@@ -48,7 +48,7 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
       shouldFetchNewData,
     );
 
-    const {keywordRefs} = await processKeywordsAndTags(
+    const { keywordRefs } = await processKeywordsAndTags(
       keywords,
       dashboardRef,
       name,
@@ -197,6 +197,7 @@ export const getDashboardByIdService = async (
       logo: dashboardData?.logo,
       password: dashboardData?.password,
       suffix: dashboardData?.suffix,
+      lastUpdated: dashboardData?.lastUpdated?.toMillis().toString(),
       visibleTagCategories: dashboardData?.visibleTagCategories,
       tagCategories,
       keywords,
@@ -276,7 +277,8 @@ export const updateDashboardService = async (
     visibleTagCategories?: string[];
     logo?: string;
     password?: string;
-    name?: string;
+    title?: string;
+    suffix?: string;
   },
 ) => {
   logger.info('dashboard.service.updateDashboardService');
@@ -302,9 +304,13 @@ export const updateDashboardService = async (
       logger.info(`Password ${body.password}`);
       updateData.password = body.password;
     }
-    logger.info(`Name ${JSON.stringify(body)}`);
-    if (body.name !== undefined) {
-      updateData.name = body.name;
+    if (body.title !== undefined) {
+      logger.info(`Name ${JSON.stringify(body.title)}`);
+      updateData.name = body.title;
+    }
+    if (body.suffix !== undefined) {
+      logger.info(`Suffix ${JSON.stringify(body.suffix)}`);
+      updateData.suffix = body.suffix;
     }
 
     await dashboardRef.update(updateData);
@@ -321,7 +327,6 @@ export const verifyDashboardAccessService = async (body: {
   password: string;
 }) => {
   logger.info('dashboard.service.verifyDashboardAccessService');
-  console.log('check body::', body);
   try {
     const { suffix, password } = body;
     const suffixQuery = await db
