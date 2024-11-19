@@ -390,8 +390,6 @@ export const processKeywordsAndTags = async (
       tags: keywordTagRefs,
     }
 
-    console.log(keywordData.dashboardRefs[0].keyRow)
-
     // Add to batch
     logger.info('Add to batch');
     batch.set(keywordRef, keywordData, { merge: true });
