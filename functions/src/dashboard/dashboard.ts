@@ -245,8 +245,15 @@ export const processKeywordsAndTags = async (
   const keywordRefs = [];
   const dashboardTagTitleAndNames = [];
 
+  // Filter any empty keywords
+  const keywordNames = keywords.reduce((acc: string[], cur) => {
+    if (!!cur.Keyword) {
+      acc.push(cur.Keyword);
+    }
+
+    return acc;
+  }, []);
   // Split keywords into chunks of 30
-  const keywordNames = keywords.map(k => k.Keyword);
   const keywordChunks = chunkArray(keywordNames, 20);
 
   // Array to store all keyword docs
