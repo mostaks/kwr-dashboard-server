@@ -1,4 +1,4 @@
-import { logger } from 'firebase-functions/v2';
+import { logger } from 'firebase-functions';
 
 export const signInService = (body: { userName: string; password: string }) => {
   logger.info('auth.service.signInService');

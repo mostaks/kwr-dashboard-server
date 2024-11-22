@@ -58,22 +58,27 @@ export const getDashboardsHandler = async (req: any, res: any) => {
   }
 };
 
-export const getDashboardHandler = async (req: any, res: any) => {
-  try {
-    const { suffix, dashboard_id } = req.query;
-    let dashboard;
-    if (suffix) {
-      dashboard = await getDashboardBySuffixService(suffix, res);
-    } else if (dashboard_id) {
-      dashboard = await getDashboardByIdService(dashboard_id, res);
-    }
+export const getDashboardHandler = functions
+  .runWith({
+    timeoutSeconds: 540, // 9 minutes = 540 seconds
+    memory: '1GB', // Optional: you might want to increase memory as well for long-running operations
+  })
+  .https.onRequest(async (req: any, res: any) => {
+    try {
+      const { suffix, dashboard_id } = req.query;
+      let dashboard;
+      if (suffix) {
+        dashboard = await getDashboardBySuffixService(suffix, res);
+      } else if (dashboard_id) {
+        dashboard = await getDashboardByIdService(dashboard_id, res);
+      }
 
-    return res.status(200).send(dashboard);
-  } catch (error) {
-    console.error('Error fetching dashboard:', error);
-    return res.status(500).send({ error: 'Failed to fetch dashboard' });
-  }
-};
+      return res.status(200).send(dashboard);
+    } catch (error) {
+      console.error('Error fetching dashboard:', error);
+      return res.status(500).send({ error: 'Failed to fetch dashboard' });
+    }
+  });
 
 export const deleteDashboardByIdHandler = async (
   req: any,
