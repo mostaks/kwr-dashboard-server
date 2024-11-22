@@ -1,6 +1,6 @@
 import { db } from '..';
 import admin from 'firebase-admin';
-import { logger } from 'firebase-functions';
+import { logger } from 'firebase-functions/v2';
 import {
   createOrUpdateDashboard,
   createOrUpdateTagCategories,

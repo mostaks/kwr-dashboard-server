@@ -1,6 +1,6 @@
 import admin, { firestore } from "firebase-admin";
 import moment from 'moment';
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/v2";
 import serviceAccount from "../permissions.json";
 import { chunkArray } from "../utils";
 import firebase from "firebase/compat";
@@ -247,7 +247,7 @@ export const processKeywordsAndTags = async (
 
   // Filter any empty keywords
   const keywordNames = keywords.reduce((acc: string[], cur) => {
-    if (!!cur.Keyword) {
+    if (cur.Keyword) {
       acc.push(cur.Keyword);
     }
 
@@ -423,6 +423,11 @@ export const monthlyKeywordsUpdate = async (
     shouldUpdate = lastUpdated < oneMonthAgo;
   }
 
+  if (!shouldUpdate) {
+    logger.info('No monthly keywords update')
+    return;
+  }
+
   if (shouldUpdate && dashboardData?.keywords?.length) {
     // Start a batch for updates
     const batch = db.batch();
@@ -471,13 +476,11 @@ export const monthlyKeywordsUpdate = async (
           }
         }
       }
+      // Update dashboard lastUpdated
+      batch.update(dashboardDoc.ref, {
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+      });
+      await batch.commit();
     }
-
-    // Update dashboard lastUpdated
-    batch.update(dashboardDoc.ref, {
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    await batch.commit();
   }
 }
