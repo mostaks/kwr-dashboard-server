@@ -417,10 +417,19 @@ export const monthlyKeywordsUpdate = async (
   // If so update with the latest data from
   const lastUpdated = dashboardData?.lastUpdated?.toDate();
   let shouldUpdate = false;
+  /* This code will set shouldUpdate to true if either:
+       - The last update was from a previous month or earlier, OR
+       - We're past the 15th of the current month and the last update was before the 15th
+   */
   if (lastUpdated) {
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    shouldUpdate = lastUpdated < oneMonthAgo;
+
+    const currentDate = new Date();
+    const isBeforeFifteenth = currentDate.getDate() >= 15 && lastUpdated.getDate() < 15;
+    const isLastMonthOrOlder = lastUpdated < oneMonthAgo;
+
+    shouldUpdate = isBeforeFifteenth || isLastMonthOrOlder;
   }
 
   if (!shouldUpdate) {
