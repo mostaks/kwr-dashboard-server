@@ -444,8 +444,6 @@ export const monthlyKeywordsUpdate = async (
 
     if (shouldUpdate && dashboardData?.keywords?.length) {
       logger.info('START Monthly keywords update');
-      // Start a batch for updates
-      const batch = db.batch();
 
       // Fetch all references in parallel
       const [keywordDocs] = await Promise.all([
@@ -464,54 +462,76 @@ export const monthlyKeywordsUpdate = async (
 
       // Fetch new SEO data
       const searchVolumeResult = await fetchDataForSEO(
-        keywordDocData, // assuming keyword IDs match the keywords
+        keywordDocData,
         dashboardData.location_name,
         dashboardData.name,
         true
       );
 
-      // Update each keyword with new data
+      // Prepare updates array
+      const updates: { ref: any, data: any }[] = [];
+
+      // Collect all updates first
       for (const keywordRef of dashboardData.keywords) {
         const keywordDoc = await keywordRef.get();
         const keywordData = keywordDoc.data();
 
         const searchVolume = searchVolumeResult?.find((ref) => ref.keyword === keywordData.name);
 
-        if (searchVolumeResult && searchVolume) {
+        if (searchVolumeResult && searchVolume && searchVolume?.monthly_searches) {
           const row = { ...keywordData };
 
-          if (searchVolume?.monthly_searches) {
-            searchVolume.monthly_searches.forEach((searchData) => {
-              const monthStr = Months[searchData.month - 1];
-              const yearStr = searchData.year.toString().slice(-2);
-              const key = `${monthStr}-${yearStr}`;
-              row[key] = searchData.search_volume.toString();
+          searchVolume.monthly_searches.forEach((searchData) => {
+            const monthStr = Months[searchData.month - 1];
+            const yearStr = searchData.year.toString().slice(-2);
+            const key = `${monthStr}-${yearStr}`;
+            row[key] = searchData.search_volume.toString();
+          });
+
+          const dashboardRefIndex = keywordData.dashboardRefs.findIndex(
+            (ref: any) => ref.dashboardId === dashboardId
+          );
+
+          if (dashboardRefIndex !== -1) {
+            const updatedDashboardRefs = [...keywordData.dashboardRefs];
+            updatedDashboardRefs[dashboardRefIndex] = {
+              ...updatedDashboardRefs[dashboardRefIndex],
+              keyRow: row
+            };
+
+            updates.push({
+              ref: keywordRef,
+              data: { dashboardRefs: updatedDashboardRefs }
             });
-
-            // Find and update the specific dashboardRef
-            const dashboardRefIndex = keywordData.dashboardRefs.findIndex(
-              (ref: any) => ref.dashboardId === dashboardId
-            );
-
-            if (dashboardRefIndex !== -1) {
-              const updatedDashboardRefs = [...keywordData.dashboardRefs];
-              updatedDashboardRefs[dashboardRefIndex] = {
-                ...updatedDashboardRefs[dashboardRefIndex],
-                keyRow: row
-              };
-
-              batch.update(keywordRef, {
-                dashboardRefs: updatedDashboardRefs
-              });
-            }
-            // Update dashboard lastUpdated
-            batch.update(dashboardDoc.ref, {
-              lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-            });
-            await batch.commit();
           }
         }
       }
+
+      // Split updates into chunks of 400 (to stay well under the 500 limit)
+      const BATCH_SIZE = 400;
+      const chunkedUpdates = [];
+      for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+        chunkedUpdates.push(updates.slice(i, i + BATCH_SIZE));
+      }
+
+      // Process each chunk with a new batch
+      for (const chunk of chunkedUpdates) {
+        const batch = db.batch();
+
+        // Add updates to batch
+        chunk.forEach(({ ref, data }) => {
+          batch.update(ref, data);
+        });
+
+        // Add dashboard lastUpdated to each batch
+        batch.update(dashboardDoc.ref, {
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Commit the batch
+        await batch.commit();
+      }
+
       logger.info('COMPLETE Monthly keywords update');
     }
   } catch (error) {
