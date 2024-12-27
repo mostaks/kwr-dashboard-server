@@ -91,7 +91,7 @@ export const getDashboardByIdService = async (
     if (!dashboardDoc.exists) {
       const nameQuery = await db
         .collection('dashboards')
-        .where('name', '==', dashboardId)
+        .where('id', '==', dashboardId)
         .limit(1)
         .get();
 
@@ -224,6 +224,9 @@ export const getDashboardBySuffixService = async (
       return res.status(404).send({ error: 'dashboard not found' });
     }
     const dashboardDoc = suffixQuery.docs[0];
+
+    console.log('dashboardDoc.id')
+    console.log(dashboardDoc.id)
 
     const dashboardData = await getDashboardByIdService(dashboardDoc.id, res);
 

@@ -413,83 +413,95 @@ export const monthlyKeywordsUpdate = async (
   dashboardDoc: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData, FirebaseFirestore.DocumentData>,
   db: admin.firestore.Firestore,
 ): Promise<void> => {
-  // Check if keywords needs updating (more than a month old)
-  // If so update with the latest data from
-  const lastUpdated = dashboardData?.lastUpdated?.toDate();
-  let shouldUpdate = false;
-  /* This code will set shouldUpdate to true if either:
-       - The last update was from a previous month or earlier, OR
-       - We're past the 15th of the current month and the last update was before the 15th
-   */
-  if (lastUpdated) {
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  try {
+    // Check if keywords needs updating (more than a month old)
+    // If so update with the latest data from
+    const lastUpdated = dashboardData?.lastUpdated?.toDate();
+    let shouldUpdate = false;
+    /* This code will set shouldUpdate to true if either:
+         - The last update was from a previous month or earlier, OR
+         - We're past the 15th of the current month and the last update was before the 15th
+     */
+    if (lastUpdated) {
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-    const currentDate = new Date();
-    const isBeforeFifteenth = currentDate.getDate() >= 15 && lastUpdated.getDate() < 15;
-    const isLastMonthOrOlder = lastUpdated < oneMonthAgo;
+      const currentDate = new Date();
+      const isBeforeFifteenth = currentDate.getDate() >= 15 && lastUpdated.getDate() < 15;
+      const isLastMonthOrOlder = lastUpdated < oneMonthAgo;
 
-    shouldUpdate = isBeforeFifteenth || isLastMonthOrOlder;
-  }
+      shouldUpdate = isBeforeFifteenth || isLastMonthOrOlder;
+    }
 
-  if (!shouldUpdate) {
-    logger.info('No monthly keywords update')
-    return;
-  }
+    if (!shouldUpdate) {
+      logger.info('No monthly keywords update')
+      return;
+    }
 
-  if (shouldUpdate && dashboardData?.keywords?.length) {
-    // Start a batch for updates
-    const batch = db.batch();
+    if (shouldUpdate && dashboardData?.keywords?.length) {
+      // Start a batch for updates
+      const batch = db.batch();
 
-    // Fetch new SEO data
-    const searchVolumeResult = await fetchDataForSEO(
-      dashboardData.keywords.map((ref: any) => ref.data.name), // assuming keyword IDs match the keywords
-      dashboardData.location_name,
-      dashboardData.name,
-      true
-    );
+      // Fetch all references in parallel
+      const [keywordDocs] = await Promise.all([
+        // Get all keywords in one batch
+        dashboardData?.keywords && dashboardData?.keywords?.length
+          ? db.getAll(...dashboardData.keywords)
+          : [],
+      ]);
 
-    // Update each keyword with new data
-    for (const keywordRef of dashboardData.keywords) {
-      const keywordDoc = await keywordRef.get();
-      const keywordData = keywordDoc.data();
+      // Fetch new SEO data
+      const searchVolumeResult = await fetchDataForSEO(
+        keywordDocs.map((ref: any) => ref?.data()?.name), // assuming keyword IDs match the keywords
+        dashboardData.location_name,
+        dashboardData.name,
+        true
+      );
 
-      if (searchVolumeResult && searchVolumeResult[keywordData.keyword]) {
-        const searchVolume = searchVolumeResult[keywordData.keyword];
-        const row = { ...keywordData };
+      // Update each keyword with new data
+      for (const keywordRef of dashboardData.keywords) {
+        const keywordDoc = await keywordRef.get();
+        const keywordData = keywordDoc.data();
 
-        if (searchVolume?.monthly_searches) {
-          searchVolume.monthly_searches.forEach((searchData) => {
-            const monthStr = Months[searchData.month - 1];
-            const yearStr = searchData.year.toString().slice(-2);
-            const key = `${monthStr}-${yearStr}`;
-            row[key] = searchData.search_volume.toString();
-          });
+        if (searchVolumeResult && searchVolumeResult[keywordData.keyword]) {
+          const searchVolume = searchVolumeResult[keywordData.keyword];
+          const row = { ...keywordData };
 
-          // Find and update the specific dashboardRef
-          const dashboardRefIndex = keywordData.dashboardRefs.findIndex(
-            (ref: any) => ref.dashboardId === dashboardId
-          );
-
-          if (dashboardRefIndex !== -1) {
-            const updatedDashboardRefs = [...keywordData.dashboardRefs];
-            updatedDashboardRefs[dashboardRefIndex] = {
-              ...updatedDashboardRefs[dashboardRefIndex],
-              keyRows: row
-            };
-
-            batch.update(keywordRef, {
-              searchVolume: row,
-              dashboardRefs: updatedDashboardRefs
+          if (searchVolume?.monthly_searches) {
+            searchVolume.monthly_searches.forEach((searchData) => {
+              const monthStr = Months[searchData.month - 1];
+              const yearStr = searchData.year.toString().slice(-2);
+              const key = `${monthStr}-${yearStr}`;
+              row[key] = searchData.search_volume.toString();
             });
+
+            // Find and update the specific dashboardRef
+            const dashboardRefIndex = keywordData.dashboardRefs.findIndex(
+              (ref: any) => ref.dashboardId === dashboardId
+            );
+
+            if (dashboardRefIndex !== -1) {
+              const updatedDashboardRefs = [...keywordData.dashboardRefs];
+              updatedDashboardRefs[dashboardRefIndex] = {
+                ...updatedDashboardRefs[dashboardRefIndex],
+                keyRows: row
+              };
+
+              batch.update(keywordRef, {
+                searchVolume: row,
+                dashboardRefs: updatedDashboardRefs
+              });
+            }
           }
         }
+        // Update dashboard lastUpdated
+        batch.update(dashboardDoc.ref, {
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        });
+        await batch.commit();
       }
-      // Update dashboard lastUpdated
-      batch.update(dashboardDoc.ref, {
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-      });
-      await batch.commit();
     }
+  } catch (error) {
+    throw new Error(`Error in monthly update: ${error}`);
   }
 }
