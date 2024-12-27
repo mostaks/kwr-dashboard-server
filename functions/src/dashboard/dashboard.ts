@@ -427,7 +427,7 @@ export const monthlyKeywordsUpdate = async (
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
       const currentDate = new Date();
-      const isBeforeFifteenth = currentDate.getDate() >= 15;
+      const isBeforeFifteenth = currentDate.getDate() >= 15 && lastUpdated.getDate() < 15;
       const isLastMonthOrOlder = lastUpdated < oneMonthAgo;
 
       shouldUpdate = isBeforeFifteenth || isLastMonthOrOlder;
