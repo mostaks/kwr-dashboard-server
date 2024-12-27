@@ -427,10 +427,14 @@ export const monthlyKeywordsUpdate = async (
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
       const currentDate = new Date();
-      const isBeforeFifteenth = currentDate.getDate() >= 15 && lastUpdated.getDate() < 15;
+      const isBeforeFifteenth = currentDate.getDate() >= 15;
       const isLastMonthOrOlder = lastUpdated < oneMonthAgo;
 
       shouldUpdate = isBeforeFifteenth || isLastMonthOrOlder;
+    }
+
+    if (!lastUpdated) {
+      shouldUpdate = true;
     }
 
     if (!shouldUpdate) {
@@ -439,6 +443,7 @@ export const monthlyKeywordsUpdate = async (
     }
 
     if (shouldUpdate && dashboardData?.keywords?.length) {
+      logger.info('START Monthly keywords update');
       // Start a batch for updates
       const batch = db.batch();
 
@@ -450,9 +455,16 @@ export const monthlyKeywordsUpdate = async (
           : [],
       ]);
 
+      const keywordDocData = keywordDocs.map((ref: any) => {
+        const data = ref?.data();
+        return {
+          Keyword: data.name,
+        }
+      });
+
       // Fetch new SEO data
       const searchVolumeResult = await fetchDataForSEO(
-        keywordDocs.map((ref: any) => ref?.data()?.name), // assuming keyword IDs match the keywords
+        keywordDocData, // assuming keyword IDs match the keywords
         dashboardData.location_name,
         dashboardData.name,
         true
@@ -463,8 +475,9 @@ export const monthlyKeywordsUpdate = async (
         const keywordDoc = await keywordRef.get();
         const keywordData = keywordDoc.data();
 
-        if (searchVolumeResult && searchVolumeResult[keywordData.keyword]) {
-          const searchVolume = searchVolumeResult[keywordData.keyword];
+        const searchVolume = searchVolumeResult?.find((ref) => ref.keyword === keywordData.name);
+
+        if (searchVolumeResult && searchVolume) {
           const row = { ...keywordData };
 
           if (searchVolume?.monthly_searches) {
@@ -484,22 +497,22 @@ export const monthlyKeywordsUpdate = async (
               const updatedDashboardRefs = [...keywordData.dashboardRefs];
               updatedDashboardRefs[dashboardRefIndex] = {
                 ...updatedDashboardRefs[dashboardRefIndex],
-                keyRows: row
+                keyRow: row
               };
 
               batch.update(keywordRef, {
-                searchVolume: row,
                 dashboardRefs: updatedDashboardRefs
               });
             }
+            // Update dashboard lastUpdated
+            batch.update(dashboardDoc.ref, {
+              lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+            await batch.commit();
           }
         }
-        // Update dashboard lastUpdated
-        batch.update(dashboardDoc.ref, {
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-        });
-        await batch.commit();
       }
+      logger.info('COMPLETE Monthly keywords update');
     }
   } catch (error) {
     throw new Error(`Error in monthly update: ${error}`);
