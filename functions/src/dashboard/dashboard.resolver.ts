@@ -7,6 +7,7 @@ import {
   updateDashboardService,
   verifyDashboardAccessService,
 } from './dashboard.service';
+import { cleanupKeywords } from "./dashboard";
 
 export const testHandler = async (req: any, res: any) => {
   try {
@@ -66,6 +67,28 @@ export const getDashboardHandler = async (req: any, res: any) => {
   } catch (error) {
     console.error('Error fetching dashboard:', error);
     return res.status(500).send({ error: 'Failed to fetch dashboard' });
+  }
+};
+
+export const cleanDashboardHandler = async (req: any, res: any) => {
+  try {
+    const { suffix, dashboard_id } = req.query;
+    let dashboardId = dashboard_id;
+
+    if (suffix) {
+      const dashboard = await getDashboardBySuffixService(suffix, res);
+      dashboardId = dashboard.id;
+    }
+
+    if (!dashboardId) {
+      return res.status(400).send({ error: 'Dashboard ID is required' });
+    }
+
+    await cleanupKeywords(db, dashboardId);
+    return res.status(200).send({ message: 'Dashboard keywords cleaned successfully' });
+  } catch (error) {
+    console.error('Error cleaning dashboard:', error);
+    return res.status(500).send({ error: 'Failed to clean dashboard' });
   }
 };
 

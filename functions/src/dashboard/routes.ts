@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  cleanDashboardHandler,
   createDashboardHandler,
   deleteDashboardByIdHandler,
   getDashboardHandler,
@@ -30,6 +31,8 @@ router.put('/api/dashboard/:dashboard_id', updateDashboardHandler);
 router.delete('/api/dashboard/:dashboard_id', deleteDashboardByIdHandler);
 // Verify dashboard access
 router.post('/api/dashboard/verify', verifyDashboardAccessHandler);
+// Cleanup dashboard keywords
+router.post('/api/dashboard/cleanup', cleanDashboardHandler);
 
 // Export the router
 export default router;

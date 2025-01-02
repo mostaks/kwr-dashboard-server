@@ -479,7 +479,7 @@ export const monthlyKeywordsUpdate = async (
         const searchVolume = searchVolumeResult?.find((ref) => ref.keyword === keywordData.name);
 
         if (searchVolumeResult && searchVolume && searchVolume?.monthly_searches) {
-          const row = { ...keywordData };
+          const row: any = {}; // Empty object to store only search volume data
 
           searchVolume.monthly_searches.forEach((searchData) => {
             const monthStr = Months[searchData.month - 1];
@@ -495,7 +495,11 @@ export const monthlyKeywordsUpdate = async (
           if (dashboardRefIndex !== -1) {
             const updatedDashboardRefs = [...keywordData.dashboardRefs];
             updatedDashboardRefs[dashboardRefIndex] = {
-              keyRow: row
+              ...updatedDashboardRefs[dashboardRefIndex], // Preserve dashboardId and other fields
+              keyRow: {
+                ...updatedDashboardRefs[dashboardRefIndex].keyRow, // Keep existing keyRow data
+                ...row // Add new search volume data
+              }
             };
 
             updates.push({
@@ -536,4 +540,54 @@ export const monthlyKeywordsUpdate = async (
   } catch (error) {
     throw new Error(`Error in monthly update: ${error}`);
   }
+}
+
+export const cleanupKeywords = async (db: admin.firestore.Firestore, dashboardId: string) => {
+  logger.info('START Keyword cleanup');
+
+  // Get the dashboard document
+  const dashboardDoc = await db.collection('dashboards').doc(dashboardId).get();
+  const dashboardData = dashboardDoc.data();
+
+  if (!dashboardData?.keywords?.length) {
+    return;
+  }
+
+  const batch = db.batch();
+  const keywordDocs = await db.getAll(...dashboardData.keywords);
+
+  for (const keywordDoc of keywordDocs) {
+    const keywordData = keywordDoc.data();
+
+    if (keywordData?.dashboardRefs) {
+      const dashboardRefIndex = keywordData.dashboardRefs.findIndex(
+        (ref: any) => ref.dashboardId === dashboardId
+      );
+
+      if (dashboardRefIndex !== -1) {
+        const updatedDashboardRefs = [...keywordData.dashboardRefs];
+        // Only keep the monthly search volume data (keys like 'Jan-23', 'Feb-23', etc.)
+        const cleanKeyRow = Object.entries(updatedDashboardRefs[dashboardRefIndex].keyRow)
+          .reduce((acc: any, [key, value]) => {
+            // Check if key matches the pattern 'MMM-YY'
+            if (/^[A-Z][a-z]{2}-\d{2}$/.test(key)) {
+              acc[key] = value;
+            }
+            return acc;
+          }, {});
+
+        updatedDashboardRefs[dashboardRefIndex] = {
+          ...updatedDashboardRefs[dashboardRefIndex],
+          keyRow: cleanKeyRow
+        };
+
+        batch.update(keywordDoc.ref, {
+          dashboardRefs: updatedDashboardRefs
+        });
+      }
+    }
+  }
+
+  await batch.commit();
+  logger.info('COMPLETE Keyword cleanup');
 }
