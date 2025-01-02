@@ -495,7 +495,6 @@ export const monthlyKeywordsUpdate = async (
           if (dashboardRefIndex !== -1) {
             const updatedDashboardRefs = [...keywordData.dashboardRefs];
             updatedDashboardRefs[dashboardRefIndex] = {
-              ...updatedDashboardRefs[dashboardRefIndex],
               keyRow: row
             };
 
