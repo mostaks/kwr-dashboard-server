@@ -3,8 +3,8 @@ import * as functions from 'firebase-functions/v2';
 import express from 'express';
 import cors from 'cors';
 import { ServiceAccount } from 'firebase-admin/lib/app/credential';
-import serviceAccount from './permissions.json';
-import routes from './dashboard/routes';
+import serviceAccount from './permissions.dev.json';
+import routes from './routes';
 
 admin.initializeApp({
   credential: admin.credential.cert({

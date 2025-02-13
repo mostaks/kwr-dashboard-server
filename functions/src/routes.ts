@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { signInHandler } from './auth/auth.resolver';
 import {
   cleanDashboardHandler,
   createDashboardHandler,
@@ -8,8 +9,12 @@ import {
   testHandler,
   updateDashboardHandler,
   verifyDashboardAccessHandler,
-} from './dashboard.resolver';
-import { signInHandler } from '../auth/auth.resolver';
+} from './dashboard/dashboard.resolver';
+import {
+  createClientHandler,
+  deleteClientHandler, getClientHandler,
+  updateClientHandler
+} from "./client/client.resolver";
 
 // Create a new Router instance
 const router = Router();
@@ -17,8 +22,9 @@ const router = Router();
 // User Auth
 router.post('/api/sign-in', signInHandler);
 
-// Define your route here
 router.get('/api/test', testHandler);
+
+// Dashboards START
 // Add keyword dashboard from json input
 router.post('/api/dashboard/create', createDashboardHandler);
 // Read item
@@ -33,6 +39,13 @@ router.delete('/api/dashboard/:dashboard_id', deleteDashboardByIdHandler);
 router.post('/api/dashboard/verify', verifyDashboardAccessHandler);
 // Cleanup dashboard keywords
 router.post('/api/dashboard/cleanup', cleanDashboardHandler);
+// Dashboards END
+
+// Clients START
+router.post('/api/client/', createClientHandler);
+router.get('/api/client/:client_id', getClientHandler);
+router.put('/api/client/:client_id', updateClientHandler);
+router.delete('/api/client/:client_id', deleteClientHandler);
 
 // Export the router
 export default router;

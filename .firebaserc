@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "kwr-server"
-  }
+    "default": "kwr-server",
+    "staging": "finndo-server-dev"
+  },
+  "targets": {},
+  "etags": {}
 }
