@@ -3,8 +3,17 @@ import * as functions from 'firebase-functions/v2';
 import express from 'express';
 import cors from 'cors';
 import { ServiceAccount } from 'firebase-admin/lib/app/credential';
-import serviceAccount from './permissions.dev.json';
+import devServiceAccount from './permissions.dev.json';
+import prodServiceAccount from './permissions.json';
 import routes from './routes';
+
+const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '');
+
+const projectId = firebaseConfig.projectId;
+
+const serviceAccount = projectId === 'finndo-server-dev'
+  ? devServiceAccount
+  : prodServiceAccount;
 
 admin.initializeApp({
   credential: admin.credential.cert({

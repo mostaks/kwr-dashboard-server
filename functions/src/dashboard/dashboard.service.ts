@@ -13,7 +13,12 @@ import {
 export const createDashboardService = async (body: ICreateDashboardArgs) => {
   logger.info('dashboard.service.createDashboardService');
   try {
-    const { name, tagCategories, keywords, location_name } = body;
+    const { name, tagCategories, keywords, location_name, clientId } = body;
+
+    if (!clientId) {
+      throw { name: 'Error', message: 'No client id was provided to create this dashboard', code: 400 };
+    }
+
     // Start a new batch
     const batch = db.batch();
 

@@ -76,6 +76,7 @@ type SeacrhVolumeResponse = {
 }
 
 export interface ICreateDashboardArgs {
+  clientId: string;
   name: string;
   suffix: string;
   tagCategories: string[];
@@ -96,14 +97,29 @@ export const createOrUpdateDashboard = async (
 }> => {
   logger.info('START dashboards');
 
-  const { name, suffix, logo, password, visibleTagCategories } = body;
+  const {
+    name,
+    suffix,
+    logo,
+    password,
+    visibleTagCategories,
+    clientId
+  } = body;
 
   const dashboardQuery = await db.collection('dashboards')
     .where('name', '==', name)
     .get();
 
-  const timestamp = admin.firestore.FieldValue.serverTimestamp();
-  let dashboardRef: admin.firestore.DocumentReference;
+  // Get client reference
+  const clientRef = db.collection('clients')
+    .doc(clientId);
+
+  const timestamp = admin.firestore
+    .FieldValue
+    .serverTimestamp();
+
+  let dashboardRef: admin.firestore
+    .DocumentReference;
 
   if (dashboardQuery.empty) {
     dashboardRef = db.collection('dashboards').doc();
@@ -115,6 +131,7 @@ export const createOrUpdateDashboard = async (
         logo,
         password,
         visibleTagCategories,
+        clientRef,
         lastUpdated: timestamp,
         createdAt: timestamp,
       },
@@ -127,6 +144,7 @@ export const createOrUpdateDashboard = async (
       suffix,
       logo,
       password,
+      clientRef,
       visibleTagCategories,
       lastUpdated: timestamp,
     });

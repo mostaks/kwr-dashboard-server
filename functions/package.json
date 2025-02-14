@@ -4,10 +4,12 @@
     "lint": "eslint --ext .js,.ts . --fix",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "serve": "FUNCTIONS_EMULATOR_TIMEOUT_SECONDS=540 npm run build && firebase emulators:start --only functions",
+    "serve": "firebase use default && FUNCTIONS_EMULATOR_TIMEOUT_SECONDS=540 npm run build && firebase emulators:start --only functions",
+    "serve:staging": "firebase use staging && FUNCTIONS_EMULATOR_TIMEOUT_SECONDS=540 npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
+    "deploy": "firebase use default && firebase deploy --only functions",
+    "deploy:staging": "firebase use staging && firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
   "engines": {

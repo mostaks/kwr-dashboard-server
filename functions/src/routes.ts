@@ -12,7 +12,9 @@ import {
 } from './dashboard/dashboard.resolver';
 import {
   createClientHandler,
-  deleteClientHandler, getClientHandler,
+  deleteClientHandler,
+  getClientHandler,
+  getClientsHandler,
   updateClientHandler
 } from "./client/client.resolver";
 
@@ -42,6 +44,7 @@ router.post('/api/dashboard/cleanup', cleanDashboardHandler);
 // Dashboards END
 
 // Clients START
+router.get('/api/clients', getClientsHandler);
 router.post('/api/client/', createClientHandler);
 router.get('/api/client/:client_id', getClientHandler);
 router.put('/api/client/:client_id', updateClientHandler);

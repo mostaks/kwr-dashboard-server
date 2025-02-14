@@ -1,8 +1,26 @@
 import {
   createClientService,
-  deleteClientService, getClientService,
+  deleteClientService,
+  getAllClientsService,
+  getClientService,
   updateClientService
 } from "./client.service";
+
+export const getClientsHandler = async (req: any, res: any) => {
+  try {
+    const clientsSnapshot = await getAllClientsService();
+    const clients = clientsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return res.status(200).json(clients);
+  } catch (error: any) {
+    console.error('Error getting all clients:', error);
+    return res.status(error.code || 500)
+      .json({ error: `Failed to get all clients: ${error.message}` });
+  }
+};
 
 export const createClientHandler = async (req: any, res: any) => {
   try {

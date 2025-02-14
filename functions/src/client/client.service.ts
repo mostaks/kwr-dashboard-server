@@ -2,6 +2,30 @@ import { logger } from "firebase-functions/v2";
 import { db } from "../index";
 import { ICreateClientArgs } from "./client";
 
+export const getAllClientsService = async () => {
+  logger.info('client.service.getAllClientsService');
+  try {
+    const clientsSnapshot = await db.collection('clients').get();
+
+    if (clientsSnapshot.empty) {
+      throw ({ name: 'Error', message: 'No clients found', code: 404 });
+    }
+
+    return clientsSnapshot;
+  } catch (error: any) {
+    // Rethrow the error if it's already formatted
+    if (error.code) {
+      throw error;
+    }
+    // Otherwise, format the error
+    throw ({
+      name: 'InternalError',
+      message: error.message,
+      code: 500
+    });
+  }
+};
+
 export const createClientService = async (body: ICreateClientArgs) => {
   logger.info('client.service.createClientService');
   try {
