@@ -11,7 +11,28 @@ export const getAllClientsService = async () => {
       throw ({ name: 'Error', message: 'No clients found', code: 404 });
     }
 
-    return clientsSnapshot;
+    // Get all dashboards
+    const dashboardsSnapshot = await db.collection('dashboards').get();
+
+    // Create a map to store dashboard counts per client
+    const dashboardCountMap = new Map();
+
+    // Count dashboards for each client
+    dashboardsSnapshot.forEach(dashboard => {
+      const clientId = dashboard.data().clientId;
+      if (clientId) {
+        dashboardCountMap.set(clientId, (dashboardCountMap.get(clientId) || 0) + 1);
+      }
+    });
+
+    // Add dashboard count to each client
+    const clientsWithDashboardCount = clientsSnapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id,
+      dashboardCount: dashboardCountMap.get(doc.id) || 0
+    }));
+
+    return clientsWithDashboardCount;
   } catch (error: any) {
     // Rethrow the error if it's already formatted
     if (error.code) {
@@ -83,7 +104,17 @@ export const getClientService = async (clientId: string) => {
       throw ({ name: 'Error', message: 'Client not found', code: 404 });
     }
 
-    return clientRef;
+    // Get dashboards for this specific client
+    const dashboardsSnapshot = await db.collection('dashboards')
+      .where('clientId', '==', clientId)
+      .get();
+
+    // Return client data with dashboard count
+    return {
+      ...clientData.data(),
+      id: clientData.id,
+      dashboardCount: dashboardsSnapshot.size
+    };
   } catch (error: any) {
     // Rethrow the error if it's already formatted
     if (error.code) {
@@ -138,6 +169,18 @@ export const deleteClientService = async (clientId: string) => {
     if (!clientRef) {
       throw ({ name: 'Error', message: 'Client not found', code: 404 });
     }
+
+    // Get all dashboards for this client
+    const dashboardsSnapshot = await db.collection('dashboards')
+      .where('clientId', '==', clientId)
+      .get();
+
+    // Delete all dashboards in a batch
+    const batch = db.batch();
+    dashboardsSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
 
     await clientRef.delete();
     return clientRef;
