@@ -8,11 +8,7 @@ import {
 
 export const getClientsHandler = async (req: any, res: any) => {
   try {
-    const clientsSnapshot = await getAllClientsService();
-    const clients = clientsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const clients = await getAllClientsService();
 
     return res.status(200).json(clients);
   } catch (error: any) {
@@ -41,13 +37,10 @@ export const createClientHandler = async (req: any, res: any) => {
 
 export const getClientHandler = async (req: any, res: any) => {
   try {
-    const clientRef = await getClientService(req.params.client_id);
-    const clientData = await clientRef.get();
-
-    return res.status(200).json({
-      id: clientRef.id,
-      ...clientData.data(),
-    });
+    const { clientId } = req.params;
+    
+    const client = await getClientService(clientId);
+    return res.status(200).json(client);
   } catch (error: any) {
     console.error('Error getting client', error);
     return res.status(error.code || 500)
