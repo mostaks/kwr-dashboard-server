@@ -132,6 +132,7 @@ export const createOrUpdateDashboard = async (
         password,
         visibleTagCategories,
         clientRef,
+        clientId,
         lastUpdated: timestamp,
         createdAt: timestamp,
       },

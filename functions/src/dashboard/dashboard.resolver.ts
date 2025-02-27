@@ -33,7 +33,42 @@ export const createDashboardHandler = async (req: any, res: any) => {
 
 export const getDashboardsHandler = async (req: any, res: any) => {
   try {
-    const snapshot = await db.collection('dashboards').get();
+    const { clientId } = req.query;
+    let snapshot;
+
+    if (clientId) {
+      snapshot = await db.collection('dashboards')
+        .where('clientId', '==', clientId)
+        .get();
+
+    } else {
+      snapshot = await db.collection('dashboards').get();
+    }
+
+    if (snapshot.empty) {
+      console.log('No matching documents found.');
+      return res.status(200).json({ dashboards: [] });
+    }
+    const items: any[] = [];
+    snapshot.forEach((doc) => {
+      items.push({ id: doc.id, ...doc.data() }); // Get document ID and data
+    });
+
+    const response = {
+      dashboards: items,
+    };
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+export const getDashboardsForClientHandler = async (req: any, res: any) => {
+  try {
+    const { clientId } = req.query;
+    const snapshot = await db.collection('dashboards')
+      .where('clientId', '==', clientId)
+      .get();
 
     if (snapshot.empty) {
       console.log('No matching documents found.');

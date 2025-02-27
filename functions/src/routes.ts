@@ -5,6 +5,7 @@ import {
   createDashboardHandler,
   deleteDashboardByIdHandler,
   getDashboardHandler,
+  getDashboardsForClientHandler,
   getDashboardsHandler,
   testHandler,
   updateDashboardHandler,
@@ -45,6 +46,7 @@ router.post('/api/dashboard/cleanup', cleanDashboardHandler);
 
 // Clients START
 router.get('/api/clients', getClientsHandler);
+router.get('/api/clients/dashboards/:client_id', getDashboardsForClientHandler);
 router.post('/api/client/', createClientHandler);
 router.get('/api/client/:client_id', getClientHandler);
 router.put('/api/client/:client_id', updateClientHandler);
