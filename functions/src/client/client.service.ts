@@ -21,7 +21,8 @@ export const getAllClientsService = async () => {
     dashboardsSnapshot.forEach(dashboard => {
       const clientId = dashboard.data().clientId;
       if (clientId) {
-        dashboardCountMap.set(clientId, (dashboardCountMap.get(clientId) || 0) + 1);
+        const currentCount: number = dashboardCountMap.get(clientId) || 0;
+        dashboardCountMap.set(clientId, currentCount + 1);
       }
     });
 
