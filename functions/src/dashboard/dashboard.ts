@@ -166,17 +166,18 @@ export const createOrUpdateTagCategories = async (
   const tagCategoryRefs: admin.firestore.DocumentReference[] = [];
 
   for (const category of tagCategories) {
+    const trimmedCategory = category.trim();
     const categoryQuery = await db.collection('tagCategories')
-      .where('name', '==', category.trim())
+      .where('name', '==', trimmedCategory)
       .get();
 
     let categoryRef: admin.firestore.DocumentReference;
     if (categoryQuery.empty) {
       categoryRef = db.collection('tagCategories').doc();
-      batch.set(categoryRef, { name: category }, { merge: true });
+      batch.set(categoryRef, { name: trimmedCategory }, { merge: true });
     } else {
       categoryRef = categoryQuery.docs[0].ref;
-      batch.update(categoryRef, { name: category });
+      batch.update(categoryRef, { name: trimmedCategory });
     }
 
     tagCategoryRefs.push(categoryRef);
