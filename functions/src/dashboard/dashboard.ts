@@ -107,7 +107,7 @@ export const createOrUpdateDashboard = async (
   } = body;
 
   const dashboardQuery = await db.collection('dashboards')
-    .where('name', '==', name)
+    .where('name', '==', name.trim())
     .get();
 
   // Get client reference
@@ -167,7 +167,7 @@ export const createOrUpdateTagCategories = async (
 
   for (const category of tagCategories) {
     const categoryQuery = await db.collection('tagCategories')
-      .where('name', '==', category)
+      .where('name', '==', category.trim())
       .get();
 
     let categoryRef: admin.firestore.DocumentReference;
