@@ -1,6 +1,6 @@
-import { logger } from "firebase-functions/v2";
-import { db } from "../index";
-import { ICreateClientArgs } from "./client";
+import { logger } from 'firebase-functions/v2';
+import { db } from '../index';
+import { ICreateClientArgs } from './client';
 
 export const getAllClientsService = async () => {
   logger.info('client.service.getAllClientsService');
@@ -8,7 +8,7 @@ export const getAllClientsService = async () => {
     const clientsSnapshot = await db.collection('clients').get();
 
     if (clientsSnapshot.empty) {
-      throw ({ name: 'Error', message: 'No clients found', code: 404 });
+      throw { name: 'Error', message: 'No clients found', code: 404 };
     }
 
     // Get all dashboards
@@ -18,7 +18,7 @@ export const getAllClientsService = async () => {
     const dashboardCountMap = new Map();
 
     // Count dashboards for each client
-    dashboardsSnapshot.forEach(dashboard => {
+    dashboardsSnapshot.forEach((dashboard) => {
       const clientId = dashboard.data().clientId;
       if (clientId) {
         const currentCount: number = dashboardCountMap.get(clientId) || 0;
@@ -27,10 +27,10 @@ export const getAllClientsService = async () => {
     });
 
     // Add dashboard count to each client
-    const clientsWithDashboardCount = clientsSnapshot.docs.map(doc => ({
+    const clientsWithDashboardCount = clientsSnapshot.docs.map((doc) => ({
       ...doc.data(),
       id: doc.id,
-      dashboardCount: dashboardCountMap.get(doc.id) || 0
+      dashboardCount: dashboardCountMap.get(doc.id) || 0,
     }));
 
     return clientsWithDashboardCount;
@@ -40,44 +40,40 @@ export const getAllClientsService = async () => {
       throw error;
     }
     // Otherwise, format the error
-    throw ({
+    throw {
       name: 'InternalError',
       message: error.message,
-      code: 500
-    });
+      code: 500,
+    };
   }
 };
 
 export const createClientService = async (body: ICreateClientArgs) => {
   logger.info('client.service.createClientService');
   try {
-    const {
-      name,
-      suffix,
-      logoUrl,
-      password,
-      description,
-      websiteUrl
-    } = body;
+    const { name, suffix, logo, password, description, websiteUrl } = body;
 
     // Create a new client document reference
-    const clientRef = db.collection('clients')
-      .doc();
+    const clientRef = db.collection('clients').doc();
 
     if (!name) {
-      throw ({ name: 'Error', message: 'No name was provided when creating client', code: 400 });
+      throw {
+        name: 'Error',
+        message: 'No name was provided when creating client',
+        code: 400,
+      };
     }
 
     // Create the client object
     await clientRef.set({
       name,
       suffix,
-      logoUrl,
+      logo,
       websiteUrl,
       description,
       password,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     return clientRef;
@@ -87,11 +83,11 @@ export const createClientService = async (body: ICreateClientArgs) => {
       throw error;
     }
     // Otherwise, format the error
-    throw ({
+    throw {
       name: 'InternalError',
       message: error.message,
-      code: 500
-    });
+      code: 500,
+    };
   }
 };
 
@@ -102,11 +98,12 @@ export const getClientService = async (clientId: string) => {
     const clientData = await clientRef.get();
 
     if (!clientData.exists) {
-      throw ({ name: 'Error', message: 'Client not found', code: 404 });
+      throw { name: 'Error', message: 'Client not found', code: 404 };
     }
 
     // Get dashboards for this specific client
-    const dashboardsSnapshot = await db.collection('dashboards')
+    const dashboardsSnapshot = await db
+      .collection('dashboards')
       .where('clientId', '==', clientId)
       .get();
 
@@ -114,7 +111,7 @@ export const getClientService = async (clientId: string) => {
     return {
       ...clientData.data(),
       id: clientData.id,
-      dashboardCount: dashboardsSnapshot.size
+      dashboardCount: dashboardsSnapshot.size,
     };
   } catch (error: any) {
     // Rethrow the error if it's already formatted
@@ -122,28 +119,30 @@ export const getClientService = async (clientId: string) => {
       throw error;
     }
     // Otherwise, format the error
-    throw ({
+    throw {
       name: 'InternalError',
       message: error.message,
-      code: 500
-    });
+      code: 500,
+    };
   }
 };
 
-export const updateClientService = async (clientId: string, body: Partial<ICreateClientArgs>) => {
+export const updateClientService = async (
+  clientId: string,
+  body: Partial<ICreateClientArgs>,
+) => {
   logger.info('client.service.updateClientService');
   try {
-    const clientRef = db.collection('clients')
-      .doc(clientId);
+    const clientRef = db.collection('clients').doc(clientId);
 
     if (!clientRef) {
-      throw ({ name: 'Error', message: 'Client not found', code: 404 });
+      throw { name: 'Error', message: 'Client not found', code: 404 };
     }
 
     // Update the client object with new fields and updated timestamp
     await clientRef.update({
       ...body,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     return clientRef;
@@ -153,32 +152,32 @@ export const updateClientService = async (clientId: string, body: Partial<ICreat
       throw error;
     }
     // Otherwise, format the error
-    throw ({
+    throw {
       name: 'InternalError',
       message: error.message,
-      code: 500
-    });
+      code: 500,
+    };
   }
 };
 
 export const deleteClientService = async (clientId: string) => {
   logger.info('client.service.deleteClientService');
   try {
-    const clientRef = db.collection('clients')
-      .doc(clientId);
+    const clientRef = db.collection('clients').doc(clientId);
 
     if (!clientRef) {
-      throw ({ name: 'Error', message: 'Client not found', code: 404 });
+      throw { name: 'Error', message: 'Client not found', code: 404 };
     }
 
     // Get all dashboards for this client
-    const dashboardsSnapshot = await db.collection('dashboards')
+    const dashboardsSnapshot = await db
+      .collection('dashboards')
       .where('clientId', '==', clientId)
       .get();
 
     // Delete all dashboards in a batch
     const batch = db.batch();
-    dashboardsSnapshot.docs.forEach(doc => {
+    dashboardsSnapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
     await batch.commit();
@@ -191,10 +190,10 @@ export const deleteClientService = async (clientId: string) => {
       throw error;
     }
     // Otherwise, format the error
-    throw ({
+    throw {
       name: 'InternalError',
       message: error.message,
-      code: 500
-    });
+      code: 500,
+    };
   }
 };

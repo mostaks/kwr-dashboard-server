@@ -16,7 +16,11 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
     const { name, tagCategories, keywords, location_name, clientId } = body;
 
     if (!clientId) {
-      throw { name: 'Error', message: 'No client id was provided to create this dashboard', code: 400 };
+      throw {
+        name: 'Error',
+        message: 'No client id was provided to create this dashboard',
+        code: 400,
+      };
     }
 
     // Start a new batch
@@ -230,8 +234,8 @@ export const getDashboardBySuffixService = async (
     }
     const dashboardDoc = suffixQuery.docs[0];
 
-    console.log('dashboardDoc.id')
-    console.log(dashboardDoc.id)
+    console.log('dashboardDoc.id');
+    console.log(dashboardDoc.id);
 
     const dashboardData = await getDashboardByIdService(dashboardDoc.id, res);
 
@@ -285,7 +289,7 @@ export const updateDashboardService = async (
     visibleTagCategories?: string[];
     logo?: string;
     password?: string;
-    title?: string;
+    name?: string;
     suffix?: string;
   },
 ) => {
@@ -312,9 +316,9 @@ export const updateDashboardService = async (
       logger.info(`Password ${body.password}`);
       updateData.password = body.password;
     }
-    if (body.title !== undefined) {
-      logger.info(`Name ${JSON.stringify(body.title)}`);
-      updateData.name = body.title;
+    if (body.name !== undefined) {
+      logger.info(`Name ${JSON.stringify(body.name)}`);
+      updateData.name = body.name;
     }
     if (body.suffix !== undefined) {
       logger.info(`Suffix ${JSON.stringify(body.suffix)}`);

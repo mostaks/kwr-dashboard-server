@@ -7,7 +7,7 @@ import {
   updateDashboardService,
   verifyDashboardAccessService,
 } from './dashboard.service';
-import { cleanupKeywords } from "./dashboard";
+import { cleanupKeywords } from './dashboard';
 
 export const testHandler = async (req: any, res: any) => {
   try {
@@ -37,10 +37,10 @@ export const getDashboardsHandler = async (req: any, res: any) => {
     let snapshot;
 
     if (clientId) {
-      snapshot = await db.collection('dashboards')
+      snapshot = await db
+        .collection('dashboards')
         .where('clientId', '==', clientId)
         .get();
-
     } else {
       snapshot = await db.collection('dashboards').get();
     }
@@ -65,8 +65,15 @@ export const getDashboardsHandler = async (req: any, res: any) => {
 
 export const getDashboardsForClientHandler = async (req: any, res: any) => {
   try {
-    const { clientId } = req.query;
-    const snapshot = await db.collection('dashboards')
+    const clientId = req.params.client_id;
+
+    // Add validation
+    if (!clientId) {
+      return res.status(400).json({ error: 'Client ID is required' });
+    }
+    console.log('clientId', clientId);
+    const snapshot = await db
+      .collection('dashboards')
       .where('clientId', '==', clientId)
       .get();
 
@@ -120,7 +127,9 @@ export const cleanDashboardHandler = async (req: any, res: any) => {
     }
 
     await cleanupKeywords(db, dashboardId);
-    return res.status(200).send({ message: 'Dashboard keywords cleaned successfully' });
+    return res
+      .status(200)
+      .send({ message: 'Dashboard keywords cleaned successfully' });
   } catch (error) {
     console.error('Error cleaning dashboard:', error);
     return res.status(500).send({ error: 'Failed to clean dashboard' });
@@ -174,7 +183,8 @@ export const updateDashboardHandler = async (req: any, res: any) => {
 
     if (dashboardData) {
       return res.status(200).json({
-        title: dashboardData.name,
+        id: dashboardRef.id,
+        name: dashboardData.name,
         suffix: dashboardData.suffix,
         password: dashboardData.password,
         logo: dashboardData.logo,

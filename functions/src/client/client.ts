@@ -2,7 +2,7 @@ export interface ICreateClientArgs {
   name: string;
   suffix: string;
   password: string;
-  logoUrl: string;
+  logo: string;
   websiteUrl: string;
   description: string;
   dashboardRefs: string[];
