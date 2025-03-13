@@ -5,7 +5,6 @@ import {
   getDashboardByIdService,
   getDashboardBySuffixService,
   updateDashboardService,
-  verifyDashboardAccessService,
 } from './dashboard.service';
 import { cleanupKeywords } from './dashboard';
 
@@ -206,16 +205,5 @@ export const updateDashboardHandler = async (req: any, res: any) => {
     }
 
     return res.status(500).json({ error: 'Failed to update dashboard' });
-  }
-};
-
-export const verifyDashboardAccessHandler = async (req: any, res: any) => {
-  try {
-    const isVerified = await verifyDashboardAccessService(req.body);
-
-    return res.status(200).send(isVerified);
-  } catch (error) {
-    console.error('Error fetching dashboard:', error);
-    return res.status(500).send({ error: 'Failed to fetch dashboard' });
   }
 };

@@ -333,29 +333,3 @@ export const updateDashboardService = async (
     throw new Error(`${errorCode}: ${errorMessage}`);
   }
 };
-
-export const verifyDashboardAccessService = async (body: {
-  suffix: string;
-  password: string;
-}) => {
-  logger.info('dashboard.service.verifyDashboardAccessService');
-  try {
-    const { suffix, password } = body;
-    const suffixQuery = await db
-      .collection('dashboards')
-      .where('suffix', '==', suffix)
-      .limit(1)
-      .get();
-    const dashboardDoc = suffixQuery.docs[0];
-    const dashboardData = dashboardDoc.data();
-
-    if (dashboardData.password === password) {
-      return true;
-    }
-    return false;
-  } catch (error: any) {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    throw new Error(`${errorCode} ${errorMessage}`);
-  }
-};

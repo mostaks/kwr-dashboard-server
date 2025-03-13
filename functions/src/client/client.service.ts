@@ -95,11 +95,13 @@ export const getClientService = async (clientId: string) => {
   logger.info('client.service.getClientService');
   try {
     const clientRef = db.collection('clients').doc(clientId);
-    const clientData = await clientRef.get();
+    const clientDoc = await clientRef.get();
 
-    if (!clientData.exists) {
+    if (!clientDoc.exists) {
       throw { name: 'Error', message: 'Client not found', code: 404 };
     }
+
+    const clientData = clientDoc.data();
 
     // Get dashboards for this specific client
     const dashboardsSnapshot = await db
@@ -107,18 +109,23 @@ export const getClientService = async (clientId: string) => {
       .where('clientId', '==', clientId)
       .get();
 
-    // Return client data with dashboard count
+    // Return complete client data with all fields
     return {
-      ...clientData.data(),
-      id: clientData.id,
+      id: clientDoc.id,
+      name: clientData?.name,
+      suffix: clientData?.suffix,
+      logo: clientData?.logo,
+      websiteUrl: clientData?.websiteUrl,
+      description: clientData?.description,
+      password: clientData?.password,
+      createdAt: clientData?.createdAt,
+      updatedAt: clientData?.updatedAt,
       dashboardCount: dashboardsSnapshot.size,
     };
   } catch (error: any) {
-    // Rethrow the error if it's already formatted
     if (error.code) {
       throw error;
     }
-    // Otherwise, format the error
     throw {
       name: 'InternalError',
       message: error.message,
@@ -195,5 +202,34 @@ export const deleteClientService = async (clientId: string) => {
       message: error.message,
       code: 500,
     };
+  }
+};
+
+export const verifyClientAccessService = async (body: {
+  suffix: string;
+  password: string;
+}) => {
+  logger.info('client.service.verifyClientAccessService');
+  try {
+    const { suffix, password } = body;
+    const suffixQuery = await db
+      .collection('clients')
+      .where('suffix', '==', suffix)
+      .limit(1)
+      .get();
+    const clientDoc = suffixQuery.docs[0];
+    const clientData = clientDoc.data();
+
+    if (clientData.password === password) {
+      return true;
+    }
+    return false;
+  } catch (error: any) {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    console.log(`${errorCode} ${errorMessage}`);
+
+    // throw new Error(`${errorCode} ${errorMessage}`);
+    return false;
   }
 };

@@ -9,15 +9,15 @@ import {
   getDashboardsHandler,
   testHandler,
   updateDashboardHandler,
-  verifyDashboardAccessHandler,
 } from './dashboard/dashboard.resolver';
 import {
   createClientHandler,
   deleteClientHandler,
   getClientHandler,
   getClientsHandler,
-  updateClientHandler
-} from "./client/client.resolver";
+  updateClientHandler,
+  verifyClientAccessHandler,
+} from './client/client.resolver';
 
 // Create a new Router instance
 const router = Router();
@@ -38,8 +38,8 @@ router.get('/api/dashboard/', getDashboardHandler);
 router.put('/api/dashboard/:dashboard_id', updateDashboardHandler);
 // Delete item
 router.delete('/api/dashboard/:dashboard_id', deleteDashboardByIdHandler);
-// Verify dashboard access
-router.post('/api/dashboard/verify', verifyDashboardAccessHandler);
+// // Verify dashboard access
+// router.post('/api/dashboard/verify', verifyDashboardAccessHandler);
 // Cleanup dashboard keywords
 router.post('/api/dashboard/cleanup', cleanDashboardHandler);
 // Dashboards END
@@ -51,6 +51,8 @@ router.post('/api/client/', createClientHandler);
 router.get('/api/client/:client_id', getClientHandler);
 router.put('/api/client/:client_id', updateClientHandler);
 router.delete('/api/client/:client_id', deleteClientHandler);
+// Verify client access
+router.post('/api/client/verify', verifyClientAccessHandler);
 
 // Export the router
 export default router;
