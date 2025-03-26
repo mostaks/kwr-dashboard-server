@@ -29,7 +29,18 @@ const db = admin.firestore();
 db.settings({ ignoreUndefinedProperties: true })
 
 const app = express();
-app.use(cors({ origin: true, credentials: false }));
+const allowedOrigins = ['http://localhost:5173', 'https://finndo.com'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (allowedOrigins.includes(origin || '') || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 
 functions.setGlobalOptions({
   timeoutSeconds: 540,

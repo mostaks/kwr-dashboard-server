@@ -165,23 +165,26 @@ export const createOrUpdateTagCategories = async (
 
   const tagCategoryRefs: admin.firestore.DocumentReference[] = [];
 
-  for (const category of tagCategories) {
+  await Promise.all(tagCategories.map(async (category) => {
     const trimmedCategory = category.trim();
     const categoryQuery = await db.collection('tagCategories')
       .where('name', '==', trimmedCategory)
+      .limit(1)
       .get();
-
+    // Create or update tag category
     let categoryRef: admin.firestore.DocumentReference;
     if (categoryQuery.empty) {
+      console.log(`Creating tag category ${trimmedCategory}`);
       categoryRef = db.collection('tagCategories').doc();
       batch.set(categoryRef, { name: trimmedCategory }, { merge: true });
     } else {
+      console.log(`Found tag category ${trimmedCategory}`);
       categoryRef = categoryQuery.docs[0].ref;
       batch.update(categoryRef, { name: trimmedCategory });
     }
 
     tagCategoryRefs.push(categoryRef);
-  }
+  }));
 
   // Update dashboard with tag category references
   batch.set(dashboardRef, {
@@ -395,10 +398,8 @@ export const processKeywordsAndTags = async (
         const monthStr = Months[searchData.month - 1];
         const yearStr = searchData.year.toString().slice(-2);
         const key = `${monthStr}-${yearStr}`;
-        console.log(key);
         row[key] = searchData.search_volume.toString();
       });
-      console.log(row);
     }
 
     // Set keyword data
