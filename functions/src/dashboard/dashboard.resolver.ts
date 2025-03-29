@@ -70,7 +70,6 @@ export const getDashboardsForClientHandler = async (req: any, res: any) => {
     if (!clientId) {
       return res.status(400).json({ error: 'Client ID is required' });
     }
-    console.log('clientId', clientId);
     const snapshot = await db
       .collection('dashboards')
       .where('clientId', '==', clientId)

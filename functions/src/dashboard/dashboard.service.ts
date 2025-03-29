@@ -234,9 +234,6 @@ export const getDashboardBySuffixService = async (
     }
     const dashboardDoc = suffixQuery.docs[0];
 
-    console.log('dashboardDoc.id');
-    console.log(dashboardDoc.id);
-
     const dashboardData = await getDashboardByIdService(dashboardDoc.id, res);
 
     return dashboardData;
