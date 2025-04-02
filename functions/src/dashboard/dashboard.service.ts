@@ -127,18 +127,16 @@ export const getDashboardByIdService = async (
     ]);
 
     // Process tag categories and their tags
-    const tagCategories = await Promise.all(
-      tagCategoryDocs.map(async (categoryDoc) => {
-        const categoryData = categoryDoc.data();
-        // Get all tags for this category in one batch
+    const tagCategories = tagCategoryDocs.map((categoryDoc) => {
+      const categoryData = categoryDoc.data();
+      // Get all tags for this category in one batch
 
-        return {
-          id: categoryDoc.id,
-          name: categoryData?.name,
-          tags: [] as any[],
-        };
-      })
-    );
+      return {
+        id: categoryDoc.id,
+        name: categoryData?.name,
+        tags: [] as any[],
+      };
+    });
 
     // Process keywords and their tags
     const keywordPromises = keywordDocs.map(async (doc) => {
@@ -202,9 +200,9 @@ export const getDashboardByIdService = async (
             } else {
               // If the tag exists, update its average search volume and keywords
               const currentTag = tagCategories[tagCategoryIndex].tags[tagIndex];
-              const tagKeywordCount = currentTag.keywords.length;
+              const tagKeywordCount: number = currentTag.keywords.length;
               const newAvgSearchVolume = (
-                (currentTag.avgSearchVolume * tagKeywordCount + searchVolume) / (tagKeywordCount + 1)
+                ((currentTag.avgSearchVolume as number) * tagKeywordCount + searchVolume) / (tagKeywordCount + 1)
               );
 
               tagCategories[tagCategoryIndex].tags[tagIndex] = {
