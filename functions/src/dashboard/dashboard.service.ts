@@ -127,26 +127,28 @@ export const getDashboardByIdService = async (
     ]);
 
     // Process tag categories and their tags
-    const tagCategoryPromises = tagCategoryDocs.map(async (categoryDoc) => {
-      const categoryData = categoryDoc.data();
-      // Get all tags for this category in one batch
-      const tagDocs = categoryData?.tags?.length
-        ? await db.getAll(...categoryData.tags)
-        : [];
+    const tagCategories = await Promise.all(
+      tagCategoryDocs.map(async (categoryDoc) => {
+        const categoryData = categoryDoc.data();
+        // Get all tags for this category in one batch
 
-      return {
-        id: categoryDoc.id,
-        name: categoryData?.name,
-        tags: tagDocs?.map((tagDoc) => ({
-          id: tagDoc?.id,
-          ...tagDoc.data(),
-        })),
-      };
-    });
+        return {
+          id: categoryDoc.id,
+          name: categoryData?.name,
+          tags: [] as any[],
+        };
+      })
+    );
 
     // Process keywords and their tags
     const keywordPromises = keywordDocs.map(async (doc) => {
       const keywordData = doc.data();
+      const searchVolume = Number(
+        keywordData?.dashboardRefs
+          ?.find((d: any) => d.dashboardId === dashboardId)
+          ?.keyRow['Search Vol']
+      );
+
       if (!keywordData?.tags?.length) {
         return {
           id: doc.id,
@@ -178,6 +180,45 @@ export const getDashboardByIdService = async (
         const tagData = tagDoc.data();
         const tagCategoryRef = tagData?.tagCategoryRef;
 
+        if (tagCategoryRef) {
+          const tagCategoryIndex = tagCategories.findIndex(
+            (category: any) => category.name === tagData.tagCategory
+          );
+
+          if (tagCategoryIndex !== -1) {
+            tagCategories[tagCategoryIndex].tags = tagCategories[tagCategoryIndex].tags || [];
+            const tagIndex = tagCategories[tagCategoryIndex].tags
+              .findIndex((tag) => tag.name === tagData.name);
+
+            // If the tag does not exist in the category, add it
+            if (tagIndex === -1) {
+
+              tagCategories[tagCategoryIndex].tags.push({
+                id: tagDoc.id,
+                ...tagData,
+                avgSearchVolume: searchVolume,
+                keywords: [keywordData?.name],
+              })
+            } else {
+              // If the tag exists, update its average search volume and keywords
+              const currentTag = tagCategories[tagCategoryIndex].tags[tagIndex];
+              const tagKeywordCount = currentTag.keywords.length;
+              const newAvgSearchVolume = (
+                (currentTag.avgSearchVolume * tagKeywordCount + searchVolume) / (tagKeywordCount + 1)
+              );
+
+              tagCategories[tagCategoryIndex].tags[tagIndex] = {
+                ...currentTag,
+                avgSearchVolume: newAvgSearchVolume,
+                keywords: [
+                  ...currentTag.keywords,
+                  keywordData?.name,
+                ]
+              }
+            }
+          }
+        }
+
         return {
           id: tagDoc.id,
           ...tagData,
@@ -195,10 +236,7 @@ export const getDashboardByIdService = async (
     });
 
     // Wait for all processing to complete
-    const [tagCategories, keywords] = await Promise.all([
-      Promise.all(tagCategoryPromises),
-      Promise.all(keywordPromises),
-    ]);
+    const keywords = await Promise.all(keywordPromises);
 
     return {
       id: dashboardDoc.id,
