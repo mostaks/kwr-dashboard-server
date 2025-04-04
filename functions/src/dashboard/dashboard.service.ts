@@ -142,9 +142,9 @@ export const getDashboardByIdService = async (
     const keywordPromises = keywordDocs.map(async (doc) => {
       const keywordData = doc.data();
       const searchVolume = Number(
-        keywordData?.dashboardRefs
-          ?.find((d: any) => d.dashboardId === dashboardId)
-          ?.keyRow['Search Vol']
+        keywordData?.dashboardRefs?.find(
+          (d: any) => d.dashboardId === dashboardId,
+        )?.keyRow['Search Vol'],
       );
 
       if (!keywordData?.tags?.length) {
@@ -180,39 +180,38 @@ export const getDashboardByIdService = async (
 
         if (tagCategoryRef) {
           const tagCategoryIndex = tagCategories.findIndex(
-            (category: any) => category.name === tagData.tagCategory
+            (category: any) => category.name === tagData.tagCategory,
           );
 
           if (tagCategoryIndex !== -1) {
-            tagCategories[tagCategoryIndex].tags = tagCategories[tagCategoryIndex].tags || [];
-            const tagIndex = tagCategories[tagCategoryIndex].tags
-              .findIndex((tag) => tag.name === tagData.name);
+            tagCategories[tagCategoryIndex].tags =
+              tagCategories[tagCategoryIndex].tags || [];
+            const tagIndex = tagCategories[tagCategoryIndex].tags.findIndex(
+              (tag) => tag.name === tagData.name,
+            );
 
             // If the tag does not exist in the category, add it
             if (tagIndex === -1) {
-
               tagCategories[tagCategoryIndex].tags.push({
                 id: tagDoc.id,
                 ...tagData,
                 avgSearchVolume: searchVolume,
                 keywords: [keywordData?.name],
-              })
+              });
             } else {
               // If the tag exists, update its average search volume and keywords
               const currentTag = tagCategories[tagCategoryIndex].tags[tagIndex];
               const tagKeywordCount: number = currentTag.keywords.length;
-              const newAvgSearchVolume = (
-                ((currentTag.avgSearchVolume as number) * tagKeywordCount + searchVolume) / (tagKeywordCount + 1)
-              );
+              const newAvgSearchVolume =
+                ((currentTag.avgSearchVolume as number) * tagKeywordCount +
+                  searchVolume) /
+                (tagKeywordCount + 1);
 
               tagCategories[tagCategoryIndex].tags[tagIndex] = {
                 ...currentTag,
                 avgSearchVolume: newAvgSearchVolume,
-                keywords: [
-                  ...currentTag.keywords,
-                  keywordData?.name,
-                ]
-              }
+                keywords: [...currentTag.keywords, keywordData?.name],
+              };
             }
           }
         }
@@ -270,6 +269,43 @@ export const getDashboardBySuffixService = async (
     }
     const dashboardDoc = suffixQuery.docs[0];
 
+    const dashboardData = await getDashboardByIdService(dashboardDoc.id, res);
+
+    return dashboardData;
+  } catch (error: any) {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    throw new Error(`${errorCode} ${errorMessage}`);
+  }
+};
+
+export const getDashboardByClientSuffixandDashboardSuffixService = async (
+  clientSuffix: string,
+  dashboardSuffix: string,
+  res: any,
+) => {
+  try {
+    const clientQuery = await db
+      .collection('clients')
+      .where('suffix', '==', clientSuffix)
+      .limit(1)
+      .get();
+
+    if (clientQuery.empty) {
+      return res.status(404).send({ error: 'client not found' });
+    }
+
+    const suffixQuery = await db
+      .collection('dashboards')
+      .where('clientRef', '==', clientQuery.docs[0].ref)
+      .where('suffix', '==', dashboardSuffix)
+      .limit(1)
+      .get();
+
+    if (suffixQuery.empty) {
+      return res.status(404).send({ error: 'dashboard not found' });
+    }
+    const dashboardDoc = suffixQuery.docs[0];
     const dashboardData = await getDashboardByIdService(dashboardDoc.id, res);
 
     return dashboardData;

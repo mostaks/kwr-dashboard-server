@@ -2,6 +2,7 @@ import { db } from '..';
 import {
   createDashboardService,
   deleteDashboardByIdService,
+  getDashboardByClientSuffixandDashboardSuffixService,
   getDashboardByIdService,
   getDashboardBySuffixService,
   updateDashboardService,
@@ -95,10 +96,14 @@ export const getDashboardsForClientHandler = async (req: any, res: any) => {
 
 export const getDashboardHandler = async (req: any, res: any) => {
   try {
-    const { suffix, dashboard_id } = req.query;
+    const { dashboardSuffix, dashboard_id, clientSuffix } = req.query;
     let dashboard;
-    if (suffix) {
-      dashboard = await getDashboardBySuffixService(suffix, res);
+    if (dashboardSuffix) {
+      dashboard = await getDashboardByClientSuffixandDashboardSuffixService(
+        clientSuffix,
+        dashboardSuffix,
+        res,
+      );
     } else if (dashboard_id) {
       dashboard = await getDashboardByIdService(dashboard_id, res);
     }
