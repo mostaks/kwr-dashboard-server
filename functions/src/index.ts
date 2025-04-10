@@ -11,9 +11,8 @@ const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '');
 
 const projectId = firebaseConfig.projectId;
 
-const serviceAccount = projectId === 'finndo-server-dev'
-  ? devServiceAccount
-  : prodServiceAccount;
+const serviceAccount =
+  projectId === 'finndo-server-dev' ? devServiceAccount : prodServiceAccount;
 
 admin.initializeApp({
   credential: admin.credential.cert({
@@ -26,28 +25,34 @@ admin.initializeApp({
 });
 const db = admin.firestore();
 
-db.settings({ ignoreUndefinedProperties: true })
+db.settings({ ignoreUndefinedProperties: true });
 
 const app = express();
-const allowedOrigins = ['http://localhost:5173', 'https://finndo.com'];
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://finndo.io',
+  'https://kwr-dashboard-client-l6w2g33cl-yianni-moustakas-projects.vercel.app',
+];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (allowedOrigins.includes(origin || '') || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (allowedOrigins.includes(origin || '') || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  }),
+);
 
 functions.setGlobalOptions({
   timeoutSeconds: 540,
-  memory: '2GiB'
+  memory: '2GiB',
 });
 
-export const api = functions.https.onRequest(app)
+export const api = functions.https.onRequest(app);
 
 // Use the imported routes
 app.use(routes);
@@ -55,7 +60,7 @@ app.use(routes);
 const server = app.listen();
 
 // Timeout 9 minutes
-server.timeout = 540000
+server.timeout = 540000;
 
 // Export the app as a Cloud Function
 exports.app = api;
