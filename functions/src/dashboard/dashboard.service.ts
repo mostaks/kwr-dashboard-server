@@ -91,6 +91,7 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
 export const getDashboardByIdService = async (
   dashboardId: string,
   res: any,
+  timeRange: number | null,
 ) => {
   try {
     // Get dashboard document
@@ -141,11 +142,38 @@ export const getDashboardByIdService = async (
     // Process keywords and their tags
     const keywordPromises = keywordDocs.map(async (doc) => {
       const keywordData = doc.data();
-      const searchVolume = Number(
-        keywordData?.dashboardRefs?.find(
-          (d: any) => d.dashboardId === dashboardId,
-        )?.keyRow['Search Vol'],
-      );
+      const keyRow = keywordData?.dashboardRefs
+        ?.find((d: any) => d.dashboardId === dashboardId);
+
+      const calculateAverageSearchVolume = () => {
+        const filteredEntries = Object.entries(keyRow.keyRow)
+          .filter(([key]) => /^\w{3}-\d{2}$/.test(key)) // Filter keys in the format "month-yy"
+          .sort(([keyA], [keyB]) => {
+            const dateA = new Date(`01-${keyA}`);
+            const dateB = new Date(`01-${keyB}`);
+            return dateB.getTime() - dateA.getTime(); // Sort by date descending
+          });
+
+        let limitedEntries;
+
+        if (!timeRange) {
+          console.log('NOtimeRange');
+          limitedEntries = filteredEntries
+        } else {
+          console.log('YEStimeRange', timeRange, typeof timeRange);
+          limitedEntries = filteredEntries.slice(0, timeRange);
+        }
+
+        console.log('filteredEntries',timeRange, limitedEntries, filteredEntries);
+
+        const total = limitedEntries
+          .reduce((sum, [, value]) => sum + parseInt(value as string, 10), 0);
+        return Math.ceil(total / limitedEntries.length); // Calculate the average
+      };
+      logger.info('keywordDocs START');
+      const searchVolume = calculateAverageSearchVolume() || 0;
+
+      logger.info('keywordDocs END', searchVolume);
 
       if (!keywordData?.tags?.length) {
         return {
@@ -256,6 +284,7 @@ export const getDashboardByIdService = async (
 export const getDashboardBySuffixService = async (
   dashboardSuffix: string,
   res: any,
+  timeRange: number | null,
 ) => {
   try {
     const suffixQuery = await db
@@ -269,7 +298,7 @@ export const getDashboardBySuffixService = async (
     }
     const dashboardDoc = suffixQuery.docs[0];
 
-    const dashboardData = await getDashboardByIdService(dashboardDoc.id, res);
+    const dashboardData = await getDashboardByIdService(dashboardDoc.id, res, timeRange);
 
     return dashboardData;
   } catch (error: any) {
@@ -283,6 +312,7 @@ export const getDashboardByClientSuffixandDashboardSuffixService = async (
   clientSuffix: string,
   dashboardSuffix: string,
   res: any,
+  timeRange: number | null,
 ) => {
   try {
     const clientQuery = await db
@@ -306,7 +336,7 @@ export const getDashboardByClientSuffixandDashboardSuffixService = async (
       return res.status(404).send({ error: 'dashboard not found' });
     }
     const dashboardDoc = suffixQuery.docs[0];
-    const dashboardData = await getDashboardByIdService(dashboardDoc.id, res);
+    const dashboardData = await getDashboardByIdService(dashboardDoc.id, res, timeRange);
 
     return dashboardData;
   } catch (error: any) {

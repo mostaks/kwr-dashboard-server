@@ -96,16 +96,19 @@ export const getDashboardsForClientHandler = async (req: any, res: any) => {
 
 export const getDashboardHandler = async (req: any, res: any) => {
   try {
-    const { dashboardSuffix, dashboard_id, clientSuffix } = req.query;
+    const { dashboardSuffix, dashboard_id, clientSuffix, timeRange } = req.query;
     let dashboard;
+
+    const timeRangeInt = timeRange === 'undefined' ? null : parseInt(timeRange, 10);
     if (dashboardSuffix) {
       dashboard = await getDashboardByClientSuffixandDashboardSuffixService(
         clientSuffix,
         dashboardSuffix,
         res,
+        timeRangeInt
       );
     } else if (dashboard_id) {
-      dashboard = await getDashboardByIdService(dashboard_id, res);
+      dashboard = await getDashboardByIdService(dashboard_id, res, timeRangeInt);
     }
 
     return res.status(200).send(dashboard);
@@ -121,7 +124,7 @@ export const cleanDashboardHandler = async (req: any, res: any) => {
     let dashboardId = dashboard_id;
 
     if (suffix) {
-      const dashboard = await getDashboardBySuffixService(suffix, res);
+      const dashboard = await getDashboardBySuffixService(suffix, res, null);
       dashboardId = dashboard.id;
     }
 
