@@ -146,29 +146,7 @@ export const getDashboardByIdService = async (
         ?.find((d: any) => d.dashboardId === dashboardId);
 
       const calculateAverageSearchVolume = () => {
-        const filteredEntries = Object.entries(keyRow.keyRow)
-          .filter(([key]) => /^\w{3}-\d{2}$/.test(key)) // Filter keys in the format "month-yy"
-          .sort(([keyA], [keyB]) => {
-            const dateA = new Date(`01-${keyA}`);
-            const dateB = new Date(`01-${keyB}`);
-            return dateB.getTime() - dateA.getTime(); // Sort by date descending
-          });
-
-        let limitedEntries;
-
-        if (!timeRange) {
-          console.log('NOtimeRange');
-          limitedEntries = filteredEntries
-        } else {
-          console.log('YEStimeRange', timeRange, typeof timeRange);
-          limitedEntries = filteredEntries.slice(0, timeRange);
-        }
-
-        console.log('filteredEntries',timeRange, limitedEntries, filteredEntries);
-
-        const total = limitedEntries
-          .reduce((sum, [, value]) => sum + parseInt(value as string, 10), 0);
-        return Math.ceil(total / limitedEntries.length); // Calculate the average
+        return parseInt(keyRow.keyRow["Search Vol"] || "0", 10);
       };
       logger.info('keywordDocs START');
       const searchVolume = calculateAverageSearchVolume() || 0;
@@ -229,11 +207,8 @@ export const getDashboardByIdService = async (
             } else {
               // If the tag exists, update its average search volume and keywords
               const currentTag = tagCategories[tagCategoryIndex].tags[tagIndex];
-              const tagKeywordCount: number = currentTag.keywords.length;
-              const newAvgSearchVolume =
-                ((currentTag.avgSearchVolume as number) * tagKeywordCount +
-                  searchVolume) /
-                (tagKeywordCount + 1);
+              const newAvgSearchVolume = (currentTag.avgSearchVolume as number) + searchVolume;
+
 
               tagCategories[tagCategoryIndex].tags[tagIndex] = {
                 ...currentTag,

@@ -249,6 +249,7 @@ export const fetchDataForSEO = async (
   }
 
   logger.info('COMPLETE dataForSEO');
+  console.log('allResults:', allResults);
   return allResults.length > 0 ? allResults : null;
 };
 
@@ -400,6 +401,7 @@ export const processKeywordsAndTags = async (
         const key = `${monthStr}-${yearStr}`;
         row[key] = searchData.search_volume.toString();
       });
+      row["Search Vol"] = searchVolume.search_volume?.toString() || '0';
     }
 
     // Set keyword data
