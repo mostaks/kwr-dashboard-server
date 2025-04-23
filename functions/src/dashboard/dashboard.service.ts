@@ -142,11 +142,12 @@ export const getDashboardByIdService = async (
     // Process keywords and their tags
     const keywordPromises = keywordDocs.map(async (doc) => {
       const keywordData = doc.data();
-      const keyRow = keywordData?.dashboardRefs
-        ?.find((d: any) => d.dashboardId === dashboardId);
+      const keyRow = keywordData?.dashboardRefs?.find(
+        (d: any) => d.dashboardId === dashboardId,
+      );
 
       const calculateAverageSearchVolume = () => {
-        return parseInt(keyRow.keyRow["Search Vol"] || "0", 10);
+        return parseInt(keyRow.keyRow['Search Vol'] || '0', 10);
       };
       logger.info('keywordDocs START');
       const searchVolume = calculateAverageSearchVolume() || 0;
@@ -207,8 +208,8 @@ export const getDashboardByIdService = async (
             } else {
               // If the tag exists, update its average search volume and keywords
               const currentTag = tagCategories[tagCategoryIndex].tags[tagIndex];
-              const newAvgSearchVolume = (currentTag.avgSearchVolume as number) + searchVolume;
-
+              const newAvgSearchVolume =
+                (currentTag.avgSearchVolume as number) + searchVolume;
 
               tagCategories[tagCategoryIndex].tags[tagIndex] = {
                 ...currentTag,
@@ -273,7 +274,11 @@ export const getDashboardBySuffixService = async (
     }
     const dashboardDoc = suffixQuery.docs[0];
 
-    const dashboardData = await getDashboardByIdService(dashboardDoc.id, res, timeRange);
+    const dashboardData = await getDashboardByIdService(
+      dashboardDoc.id,
+      res,
+      timeRange,
+    );
 
     return dashboardData;
   } catch (error: any) {
@@ -311,7 +316,11 @@ export const getDashboardByClientSuffixandDashboardSuffixService = async (
       return res.status(404).send({ error: 'dashboard not found' });
     }
     const dashboardDoc = suffixQuery.docs[0];
-    const dashboardData = await getDashboardByIdService(dashboardDoc.id, res, timeRange);
+    const dashboardData = await getDashboardByIdService(
+      dashboardDoc.id,
+      res,
+      timeRange,
+    );
 
     return dashboardData;
   } catch (error: any) {

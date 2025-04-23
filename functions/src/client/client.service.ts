@@ -51,7 +51,7 @@ export const getAllClientsService = async () => {
 export const createClientService = async (body: ICreateClientArgs) => {
   logger.info('client.service.createClientService');
   try {
-    const { name, suffix, logo, password, description, websiteUrl } = body;
+    const { name, suffix, logo, password, description, agencyLogo } = body;
 
     // Create a new client document reference
     const clientRef = db.collection('clients').doc();
@@ -69,7 +69,7 @@ export const createClientService = async (body: ICreateClientArgs) => {
       name,
       suffix,
       logo,
-      websiteUrl,
+      agencyLogo,
       description,
       password,
       createdAt: new Date(),

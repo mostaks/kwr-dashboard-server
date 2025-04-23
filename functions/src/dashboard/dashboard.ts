@@ -1,9 +1,9 @@
-import admin, { firestore } from "firebase-admin";
+import admin, { firestore } from 'firebase-admin';
 import moment from 'moment';
-import { logger } from "firebase-functions/v2";
-import serviceAccount from "../permissions.json";
-import { chunkArray } from "../utils";
-import firebase from "firebase/compat";
+import { logger } from 'firebase-functions/v2';
+import serviceAccount from '../permissions.json';
+import { chunkArray } from '../utils';
+import firebase from 'firebase/compat';
 import QuerySnapshot = firestore.QuerySnapshot;
 import DocumentData = firebase.firestore.DocumentData;
 
@@ -11,7 +11,7 @@ type MonthlySearch = {
   year: number;
   month: number;
   search_volume: number;
-}
+};
 
 enum Months {
   Jan = 0,
@@ -25,7 +25,7 @@ enum Months {
   Sep = 8,
   Oct = 9,
   Nov = 10,
-  Dec = 11
+  Dec = 11,
 }
 
 type KeywordResult = {
@@ -41,7 +41,7 @@ type KeywordResult = {
   high_top_of_page_bid: number | null;
   cpc: number | null;
   monthly_searches: MonthlySearch[] | null;
-}
+};
 
 type TaskData = {
   api: string;
@@ -50,7 +50,7 @@ type TaskData = {
   keywords: string[];
   location_name: string;
   language_name: string;
-}
+};
 
 type Task = {
   id: string;
@@ -62,7 +62,7 @@ type Task = {
   path: string[];
   data: TaskData;
   result: KeywordResult[];
-}
+};
 
 type SeacrhVolumeResponse = {
   version: string;
@@ -73,7 +73,7 @@ type SeacrhVolumeResponse = {
   tasks_count: number;
   tasks_error: number;
   tasks: Task[];
-}
+};
 
 export interface ICreateDashboardArgs {
   clientId: string;
@@ -81,10 +81,16 @@ export interface ICreateDashboardArgs {
   suffix: string;
   tagCategories: string[];
   keywords: Record<string, string>[];
-  location_name: string; // Add this parameter
-  logo: string;
-  password: string;
   visibleTagCategories: string[];
+
+  // To Add in Frontend
+  description: string;
+  // @deprecated
+  location_name: string; // Add this parameter
+  // @deprecated
+  logo: string;
+  // @deprecated
+  password: string;
 }
 
 export const createOrUpdateDashboard = async (
@@ -92,34 +98,24 @@ export const createOrUpdateDashboard = async (
   db: admin.firestore.Firestore,
   body: ICreateDashboardArgs,
 ): Promise<{
-  dashboardRef: admin.firestore.DocumentReference,
-  dashboardQuery: QuerySnapshot<DocumentData, DocumentData>
+  dashboardRef: admin.firestore.DocumentReference;
+  dashboardQuery: QuerySnapshot<DocumentData, DocumentData>;
 }> => {
   logger.info('START dashboards');
 
-  const {
-    name,
-    suffix,
-    logo,
-    password,
-    visibleTagCategories,
-    clientId
-  } = body;
+  const { name, suffix, visibleTagCategories, clientId, description } = body;
 
-  const dashboardQuery = await db.collection('dashboards')
+  const dashboardQuery = await db
+    .collection('dashboards')
     .where('name', '==', name.trim())
     .get();
 
   // Get client reference
-  const clientRef = db.collection('clients')
-    .doc(clientId);
+  const clientRef = db.collection('clients').doc(clientId);
 
-  const timestamp = admin.firestore
-    .FieldValue
-    .serverTimestamp();
+  const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
-  let dashboardRef: admin.firestore
-    .DocumentReference;
+  let dashboardRef: admin.firestore.DocumentReference;
 
   if (dashboardQuery.empty) {
     dashboardRef = db.collection('dashboards').doc();
@@ -128,68 +124,75 @@ export const createOrUpdateDashboard = async (
       {
         name,
         suffix,
-        logo,
-        password,
+
         visibleTagCategories,
         clientRef,
         clientId,
+        description,
         lastUpdated: timestamp,
         createdAt: timestamp,
       },
-      { merge: true }
+      { merge: true },
     );
   } else {
     dashboardRef = dashboardQuery.docs[0].ref;
     batch.update(dashboardRef, {
       name,
       suffix,
-      logo,
-      password,
+
       clientRef,
+      description,
       visibleTagCategories,
       lastUpdated: timestamp,
     });
   }
 
   logger.info('COMPLETE dashboards');
-  return { dashboardRef, dashboardQuery }
+  return { dashboardRef, dashboardQuery };
 };
 
 export const createOrUpdateTagCategories = async (
   tagCategories: string[],
   dashboardRef: admin.firestore.DocumentReference,
   batch: admin.firestore.WriteBatch,
-  db: admin.firestore.Firestore
+  db: admin.firestore.Firestore,
 ): Promise<admin.firestore.DocumentReference[]> => {
   logger.info('START tagCategories');
 
   const tagCategoryRefs: admin.firestore.DocumentReference[] = [];
 
-  await Promise.all(tagCategories.map(async (category) => {
-    const trimmedCategory = category.trim();
-    const categoryQuery = await db.collection('tagCategories')
-      .where('name', '==', trimmedCategory)
-      .limit(1)
-      .get();
-    // Create or update tag category
-    let categoryRef: admin.firestore.DocumentReference;
-    if (categoryQuery.empty) {
-      console.log(`Creating tag category ${trimmedCategory}`);
-      categoryRef = db.collection('tagCategories').doc();
-      batch.set(categoryRef, { name: trimmedCategory }, { merge: true });
-    } else {
-      console.log(`Found tag category ${trimmedCategory}`);
-      categoryRef = categoryQuery.docs[0].ref;
-      batch.update(categoryRef, { name: trimmedCategory });
-    }
+  await Promise.all(
+    tagCategories.map(async (category) => {
+      const trimmedCategory = category.trim();
+      const categoryQuery = await db
+        .collection('tagCategories')
+        .where('name', '==', trimmedCategory)
+        .limit(1)
+        .get();
+      // Create or update tag category
+      let categoryRef: admin.firestore.DocumentReference;
+      if (categoryQuery.empty) {
+        console.log(`Creating tag category ${trimmedCategory}`);
+        categoryRef = db.collection('tagCategories').doc();
+        batch.set(categoryRef, { name: trimmedCategory }, { merge: true });
+      } else {
+        console.log(`Found tag category ${trimmedCategory}`);
+        categoryRef = categoryQuery.docs[0].ref;
+        batch.update(categoryRef, { name: trimmedCategory });
+      }
 
-    tagCategoryRefs.push(categoryRef);
-  }));
+      tagCategoryRefs.push(categoryRef);
+    }),
+  );
 
   // Update dashboard with tag category references
-  batch.set(dashboardRef, {
-    tagCategories: tagCategoryRefs
-  }, { merge: true });
+  batch.set(
+    dashboardRef,
+    {
+      tagCategories: tagCategoryRefs,
+    },
+    { merge: true },
+  );
 
   logger.info('COMPLETE tagCategories');
 
@@ -200,12 +203,14 @@ export const fetchDataForSEO = async (
   keywords: Record<string, string>[],
   location_name: string,
   name: string,
-  shouldFetchNewData: boolean
+  shouldFetchNewData: boolean,
 ): Promise<KeywordResult[] | null> => {
   logger.info('START dataForSEO');
 
   if (!shouldFetchNewData) {
-    console.log(`Skipping DataForSEO API call for dashboard ${name} as data is less than 1 month old`);
+    console.log(
+      `Skipping DataForSEO API call for dashboard ${name} as data is less than 1 month old`,
+    );
     return null;
   }
 
@@ -216,26 +221,33 @@ export const fetchDataForSEO = async (
 
   for (const batch of keywordBatches) {
     try {
-      const response = await fetch('https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + Buffer.from(
-            serviceAccount.dataforseo_login + ':' + serviceAccount.dataforseo_password
-          ).toString('base64'),
-          'Content-Type': 'application/json'
+      const response = await fetch(
+        'https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live',
+        {
+          method: 'POST',
+          headers: {
+            Authorization:
+              'Basic ' +
+              Buffer.from(
+                serviceAccount.dataforseo_login +
+                  ':' +
+                  serviceAccount.dataforseo_password,
+              ).toString('base64'),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify([
+            {
+              keywords: batch.map(({ Keyword }: any) => Keyword),
+              location_name: location_name || 'Australia',
+              language_name: 'English',
+              search_partners: false,
+              include_adult_keywords: true,
+              sort_by: 'relevance',
+              date_from: date_from,
+            },
+          ]),
         },
-        body: JSON.stringify([
-          {
-            "keywords": batch.map(({ Keyword }: any) => Keyword),
-            "location_name": location_name || 'Australia',
-            "language_name": "English",
-            "search_partners": false,
-            "include_adult_keywords": true,
-            "sort_by": "relevance",
-            "date_from": date_from
-          }
-        ])
-      });
+      );
 
       const searchVolumeResponse: SeacrhVolumeResponse = await response.json();
       const batchResults = searchVolumeResponse?.tasks[0]?.result;
@@ -244,7 +256,10 @@ export const fetchDataForSEO = async (
         allResults = [...allResults, ...batchResults];
       }
     } catch (error) {
-      console.error(`Error fetching DataForSEO data for dashboard ${name} batch:`, error);
+      console.error(
+        `Error fetching DataForSEO data for dashboard ${name} batch:`,
+        error,
+      );
     }
   }
 
@@ -262,8 +277,11 @@ export const processKeywordsAndTags = async (
   searchVolumeResult: KeywordResult[] | null,
   shouldFetchNewData: boolean,
   batch: admin.firestore.WriteBatch,
-  db: admin.firestore.Firestore
-): Promise<{ keywordRefs: admin.firestore.DocumentReference[], dashboardTagTitleAndNames: string[] }> => {
+  db: admin.firestore.Firestore,
+): Promise<{
+  keywordRefs: admin.firestore.DocumentReference[];
+  dashboardTagTitleAndNames: string[];
+}> => {
   logger.info('START keywords');
   // Create an array to store keyword references
   const keywordRefs = [];
@@ -286,7 +304,8 @@ export const processKeywordsAndTags = async (
   // Process each chunk
   logger.info('Process each chunk');
   for (const chunk of keywordChunks) {
-    const chunkSnapshot = await db.collection('keywords')
+    const chunkSnapshot = await db
+      .collection('keywords')
       .where('name', 'in', chunk)
       .get();
 
@@ -296,14 +315,14 @@ export const processKeywordsAndTags = async (
   logger.info('Create a map of existing keywords');
   // Create a map of existing keywords
   const existingKeywords = new Map();
-  allKeywordDocs.forEach(doc => {
+  allKeywordDocs.forEach((doc) => {
     existingKeywords.set(doc.data()?.name, { ref: doc.ref, data: doc.data() });
   });
 
   logger.info('Batch fetch all existing tags');
   // Batch fetch all existing tags
   const tagQueries = new Set();
-  keywords.forEach(keyword => {
+  keywords.forEach((keyword) => {
     Object.entries(keyword).forEach(([key, val]) => {
       if (tagCategories.includes(key)) {
         tagQueries.add(JSON.stringify({ name: val, category: key }));
@@ -315,22 +334,27 @@ export const processKeywordsAndTags = async (
   const existingTags = new Map();
   if (tagQueries.size > 0) {
     // Convert Set to Array and get tag names
-    const tagNames = Array.from(tagQueries)
-      .map(q => JSON.parse(q as any)?.name);
+    const tagNames = Array.from(tagQueries).map(
+      (q) => JSON.parse(q as any)?.name,
+    );
 
     // Split into chunks of 30 (Firestore's limit)
     const tagChunks = chunkArray(tagNames, 30);
 
     // Process each chunk
     for (const chunk of tagChunks) {
-      const chunkSnapshot = await db.collection('tags')
+      const chunkSnapshot = await db
+        .collection('tags')
         .where('name', 'in', chunk)
         .get();
 
       // Add results to map
-      chunkSnapshot.forEach(doc => {
+      chunkSnapshot.forEach((doc) => {
         const data = doc.data();
-        existingTags.set(`${data.tagCategory}-${data.name}`, { ref: doc.ref, data });
+        existingTags.set(`${data.tagCategory}-${data.name}`, {
+          ref: doc.ref,
+          data,
+        });
       });
     }
   }
@@ -345,7 +369,9 @@ export const processKeywordsAndTags = async (
     if (!shouldFetchNewData && existingKeyword) {
       searchVolume = existingKeyword.data.searchVolume;
     } else {
-      searchVolume = searchVolumeResult?.find((res) => res.keyword === keyword.Keyword) || null;
+      searchVolume =
+        searchVolumeResult?.find((res) => res.keyword === keyword.Keyword) ||
+        null;
     }
 
     // Create or get keyword reference
@@ -378,11 +404,15 @@ export const processKeywordsAndTags = async (
             continue; // Skip this tag if category ref not found
           }
 
-          batch.set(tagRef, {
-            name: val,
-            tagCategoryRef: categoryRef,
-            tagCategory: key,
-          }, { merge: true });
+          batch.set(
+            tagRef,
+            {
+              name: val,
+              tagCategoryRef: categoryRef,
+              tagCategory: key,
+            },
+            { merge: true },
+          );
 
           existingTags.set(tagKey, { ref: tagRef });
         }
@@ -409,21 +439,21 @@ export const processKeywordsAndTags = async (
     const keywordData = {
       name: keyword.Keyword,
       dashboardRefs: [
-        ...(existingKeyword?.data.dashboardRefs || [])
-          .filter((existing: any) => existing.dashboardName !== dashboardName),
+        ...(existingKeyword?.data.dashboardRefs || []).filter(
+          (existing: any) => existing.dashboardName !== dashboardName,
+        ),
         {
           dashboardId: dashboardRef.id,
           dashboardName,
-          keyRow: row
-        }
+          keyRow: row,
+        },
       ],
       tags: keywordTagRefs,
-    }
+    };
 
     // Add to batch
     logger.info('Add to batch');
     batch.set(keywordRef, keywordData, { merge: true });
-
   }
 
   logger.info('COMPLETE keywords');
@@ -433,7 +463,10 @@ export const processKeywordsAndTags = async (
 export const monthlyKeywordsUpdate = async (
   dashboardData: FirebaseFirestore.DocumentData | undefined,
   dashboardId: string,
-  dashboardDoc: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData, FirebaseFirestore.DocumentData>,
+  dashboardDoc: FirebaseFirestore.DocumentSnapshot<
+    FirebaseFirestore.DocumentData,
+    FirebaseFirestore.DocumentData
+  >,
   db: admin.firestore.Firestore,
 ): Promise<void> => {
   try {
@@ -450,7 +483,8 @@ export const monthlyKeywordsUpdate = async (
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
       const currentDate = new Date();
-      const isBeforeFifteenth = currentDate.getDate() >= 15 && lastUpdated.getDate() < 15;
+      const isBeforeFifteenth =
+        currentDate.getDate() >= 15 && lastUpdated.getDate() < 15;
       const isLastMonthOrOlder = lastUpdated < oneMonthAgo;
 
       shouldUpdate = isBeforeFifteenth || isLastMonthOrOlder;
@@ -461,7 +495,7 @@ export const monthlyKeywordsUpdate = async (
     }
 
     if (!shouldUpdate) {
-      logger.info('No monthly keywords update')
+      logger.info('No monthly keywords update');
       return;
     }
 
@@ -480,7 +514,7 @@ export const monthlyKeywordsUpdate = async (
         const data = ref?.data();
         return {
           Keyword: data.name,
-        }
+        };
       });
 
       // Fetch new SEO data
@@ -488,20 +522,26 @@ export const monthlyKeywordsUpdate = async (
         keywordDocData,
         dashboardData.location_name,
         dashboardData.name,
-        true
+        true,
       );
 
       // Prepare updates array
-      const updates: { ref: any, data: any }[] = [];
+      const updates: { ref: any; data: any }[] = [];
 
       // Collect all updates first
       for (const keywordRef of dashboardData.keywords) {
         const keywordDoc = await keywordRef.get();
         const keywordData = keywordDoc.data();
 
-        const searchVolume = searchVolumeResult?.find((ref) => ref.keyword === keywordData.name);
+        const searchVolume = searchVolumeResult?.find(
+          (ref) => ref.keyword === keywordData.name,
+        );
 
-        if (searchVolumeResult && searchVolume && searchVolume?.monthly_searches) {
+        if (
+          searchVolumeResult &&
+          searchVolume &&
+          searchVolume?.monthly_searches
+        ) {
           const row: any = {}; // Empty object to store only search volume data
 
           searchVolume.monthly_searches.forEach((searchData) => {
@@ -512,7 +552,7 @@ export const monthlyKeywordsUpdate = async (
           });
 
           const dashboardRefIndex = keywordData.dashboardRefs.findIndex(
-            (ref: any) => ref.dashboardId === dashboardId
+            (ref: any) => ref.dashboardId === dashboardId,
           );
 
           if (dashboardRefIndex !== -1) {
@@ -521,13 +561,13 @@ export const monthlyKeywordsUpdate = async (
               ...updatedDashboardRefs[dashboardRefIndex], // Preserve dashboardId and other fields
               keyRow: {
                 ...updatedDashboardRefs[dashboardRefIndex].keyRow, // Keep existing keyRow data
-                ...row // Add new search volume data
-              }
+                ...row, // Add new search volume data
+              },
             };
 
             updates.push({
               ref: keywordRef,
-              data: { dashboardRefs: updatedDashboardRefs }
+              data: { dashboardRefs: updatedDashboardRefs },
             });
           }
         }
@@ -551,7 +591,7 @@ export const monthlyKeywordsUpdate = async (
 
         // Add dashboard lastUpdated to each batch
         batch.update(dashboardDoc.ref, {
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
         });
 
         // Commit the batch
@@ -563,9 +603,12 @@ export const monthlyKeywordsUpdate = async (
   } catch (error) {
     throw new Error(`Error in monthly update: ${error}`);
   }
-}
+};
 
-export const cleanupKeywords = async (db: admin.firestore.Firestore, dashboardId: string) => {
+export const cleanupKeywords = async (
+  db: admin.firestore.Firestore,
+  dashboardId: string,
+) => {
   logger.info('START Keyword cleanup');
 
   // Get the dashboard document
@@ -584,28 +627,29 @@ export const cleanupKeywords = async (db: admin.firestore.Firestore, dashboardId
 
     if (keywordData?.dashboardRefs) {
       const dashboardRefIndex = keywordData.dashboardRefs.findIndex(
-        (ref: any) => ref.dashboardId === dashboardId
+        (ref: any) => ref.dashboardId === dashboardId,
       );
 
       if (dashboardRefIndex !== -1) {
         const updatedDashboardRefs = [...keywordData.dashboardRefs];
         // Only keep the monthly search volume data (keys like 'Jan-23', 'Feb-23', etc.)
-        const cleanKeyRow = Object.entries(updatedDashboardRefs[dashboardRefIndex].keyRow)
-          .reduce((acc: any, [key, value]) => {
-            // Check if key matches the pattern 'MMM-YY'
-            if (/^[A-Z][a-z]{2}-\d{2}$/.test(key)) {
-              acc[key] = value;
-            }
-            return acc;
-          }, {});
+        const cleanKeyRow = Object.entries(
+          updatedDashboardRefs[dashboardRefIndex].keyRow,
+        ).reduce((acc: any, [key, value]) => {
+          // Check if key matches the pattern 'MMM-YY'
+          if (/^[A-Z][a-z]{2}-\d{2}$/.test(key)) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {});
 
         updatedDashboardRefs[dashboardRefIndex] = {
           ...updatedDashboardRefs[dashboardRefIndex],
-          keyRow: cleanKeyRow
+          keyRow: cleanKeyRow,
         };
 
         batch.update(keywordDoc.ref, {
-          dashboardRefs: updatedDashboardRefs
+          dashboardRefs: updatedDashboardRefs,
         });
       }
     }
@@ -613,4 +657,4 @@ export const cleanupKeywords = async (db: admin.firestore.Firestore, dashboardId
 
   await batch.commit();
   logger.info('COMPLETE Keyword cleanup');
-}
+};

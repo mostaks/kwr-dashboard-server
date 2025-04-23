@@ -9,6 +9,13 @@ import {
 } from './dashboard.service';
 import { cleanupKeywords } from './dashboard';
 
+// Add interface at the top of the file after imports
+interface TagCategory {
+  id: string;
+  name: string;
+  [key: string]: any; // For any additional fields that might be in the tag category document
+}
+
 export const testHandler = async (req: any, res: any) => {
   try {
     return await res.status(200).send({ greeting: 'hello test' });
@@ -80,10 +87,36 @@ export const getDashboardsForClientHandler = async (req: any, res: any) => {
       console.log('No matching documents found.');
       return res.status(200).json({ dashboards: [] });
     }
+
     const items: any[] = [];
-    snapshot.forEach((doc) => {
-      items.push({ id: doc.id, ...doc.data() }); // Get document ID and data
-    });
+
+    // Process each dashboard document
+    for (const doc of snapshot.docs) {
+      const dashboardData = doc.data();
+
+      // Fetch tag categories if they exist
+      let resolvedTagCategories: TagCategory[] = [];
+      if (
+        dashboardData.tagCategories &&
+        dashboardData.tagCategories.length > 0
+      ) {
+        const tagCategoryDocs = await db.getAll(...dashboardData.tagCategories);
+        resolvedTagCategories = tagCategoryDocs.map((categoryDoc) => {
+          const data = categoryDoc.data();
+          return {
+            id: categoryDoc.id,
+            name: data?.name || 'Unnamed Category', // Provide a default name if missing
+            ...data,
+          };
+        });
+      }
+
+      items.push({
+        id: doc.id,
+        ...dashboardData,
+        tagCategories: resolvedTagCategories,
+      });
+    }
 
     const response = {
       dashboards: items,
@@ -91,24 +124,31 @@ export const getDashboardsForClientHandler = async (req: any, res: any) => {
     return res.status(200).json(response);
   } catch (error) {
     console.error(error);
+    return res.status(500).json({ error: 'Failed to fetch dashboards' });
   }
 };
 
 export const getDashboardHandler = async (req: any, res: any) => {
   try {
-    const { dashboardSuffix, dashboard_id, clientSuffix, timeRange } = req.query;
+    const { dashboardSuffix, dashboard_id, clientSuffix, timeRange } =
+      req.query;
     let dashboard;
 
-    const timeRangeInt = timeRange === 'undefined' ? null : parseInt(timeRange, 10);
+    const timeRangeInt =
+      timeRange === 'undefined' ? null : parseInt(timeRange, 10);
     if (dashboardSuffix) {
       dashboard = await getDashboardByClientSuffixandDashboardSuffixService(
         clientSuffix,
         dashboardSuffix,
         res,
-        timeRangeInt
+        timeRangeInt,
       );
     } else if (dashboard_id) {
-      dashboard = await getDashboardByIdService(dashboard_id, res, timeRangeInt);
+      dashboard = await getDashboardByIdService(
+        dashboard_id,
+        res,
+        timeRangeInt,
+      );
     }
 
     return res.status(200).send(dashboard);
