@@ -235,6 +235,7 @@ export const updateDashboardHandler = async (req: any, res: any) => {
         password: dashboardData.password,
         logo: dashboardData.logo,
         visibleTagCategories: dashboardData.visibleTagCategories,
+        description: dashboardData.description,
       });
     } else {
       return res.status(200).json({

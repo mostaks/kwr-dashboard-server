@@ -247,6 +247,7 @@ export const getDashboardByIdService = async (
       suffix: dashboardData?.suffix,
       lastUpdated: dashboardData?.lastUpdated?.toMillis().toString(),
       visibleTagCategories: dashboardData?.visibleTagCategories,
+      description: dashboardData?.description,
       tagCategories,
       keywords,
     };
@@ -374,6 +375,7 @@ export const updateDashboardService = async (
     password?: string;
     name?: string;
     suffix?: string;
+    description?: string;
   },
 ) => {
   logger.info('dashboard.service.updateDashboardService');
@@ -406,6 +408,10 @@ export const updateDashboardService = async (
     if (body.suffix !== undefined) {
       logger.info(`Suffix ${JSON.stringify(body.suffix)}`);
       updateData.suffix = body.suffix;
+    }
+    if (body.description !== undefined) {
+      logger.info(`Description ${JSON.stringify(body.description)}`);
+      updateData.description = body.description;
     }
 
     await dashboardRef.update(updateData);
