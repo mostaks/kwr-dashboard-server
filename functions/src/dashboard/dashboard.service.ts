@@ -1,6 +1,6 @@
-import { db } from '..';
-import admin from 'firebase-admin';
-import { logger } from 'firebase-functions/v2';
+import { db } from "..";
+import admin from "firebase-admin";
+import { logger } from "firebase-functions/v2";
 import {
   createOrUpdateDashboard,
   createOrUpdateTagCategories,
@@ -8,17 +8,17 @@ import {
   ICreateDashboardArgs,
   monthlyKeywordsUpdate,
   processKeywordsAndTags,
-} from './dashboard';
+} from "./dashboard";
 
 export const createDashboardService = async (body: ICreateDashboardArgs) => {
-  logger.info('dashboard.service.createDashboardService');
+  logger.info("dashboard.service.createDashboardService");
   try {
     const { name, tagCategories, keywords, location_name, clientId } = body;
 
     if (!clientId) {
       throw {
-        name: 'Error',
-        message: 'No client id was provided to create this dashboard',
+        name: "Error",
+        message: "No client id was provided to create this dashboard",
         code: 400,
       };
     }
@@ -29,14 +29,14 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
     const { dashboardRef, dashboardQuery } = await createOrUpdateDashboard(
       batch,
       db,
-      body,
+      body
     );
 
     const tagCategoryRefs = await createOrUpdateTagCategories(
       tagCategories,
       dashboardRef,
       batch,
-      db,
+      db
     );
 
     let shouldFetchNewData = true;
@@ -54,7 +54,7 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
       keywords,
       location_name,
       name,
-      shouldFetchNewData,
+      shouldFetchNewData
     );
 
     const { keywordRefs } = await processKeywordsAndTags(
@@ -66,7 +66,7 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
       searchVolumeResult,
       shouldFetchNewData,
       batch,
-      db,
+      db
     );
 
     // Update dashboard with keyword references
@@ -75,7 +75,7 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
       {
         keywords: keywordRefs,
       },
-      { merge: true },
+      { merge: true }
     );
 
     // Commit the batch
@@ -91,22 +91,22 @@ export const createDashboardService = async (body: ICreateDashboardArgs) => {
 export const getDashboardByIdService = async (
   dashboardId: string,
   res: any,
-  timeRange: number | null,
+  timeRange: number | null
 ) => {
   try {
     // Get dashboard document
-    let dashboardDoc = await db.collection('dashboards').doc(dashboardId).get();
+    let dashboardDoc = await db.collection("dashboards").doc(dashboardId).get();
 
     // If not found, try by name
     if (!dashboardDoc.exists) {
       const nameQuery = await db
-        .collection('dashboards')
-        .where('id', '==', dashboardId)
+        .collection("dashboards")
+        .where("id", "==", dashboardId)
         .limit(1)
         .get();
 
       if (nameQuery.empty) {
-        return res.status(404).send({ error: 'dashboard not found' });
+        return res.status(404).send({ error: "dashboard not found" });
       }
       dashboardDoc = nameQuery.docs[0];
     }
@@ -143,16 +143,16 @@ export const getDashboardByIdService = async (
     const keywordPromises = keywordDocs.map(async (doc) => {
       const keywordData = doc.data();
       const keyRow = keywordData?.dashboardRefs?.find(
-        (d: any) => d.dashboardId === dashboardId,
+        (d: any) => d.dashboardId === dashboardId
       );
 
       const calculateAverageSearchVolume = () => {
-        return parseInt(keyRow.keyRow['Search Vol'] || '0', 10);
+        return parseInt(keyRow.keyRow["Search Vol"] || "0", 10);
       };
-      logger.info('keywordDocs START');
+      // logger.info('keywordDocs START');
       const searchVolume = calculateAverageSearchVolume() || 0;
 
-      logger.info('keywordDocs END', searchVolume);
+      // logger.info('keywordDocs END', searchVolume);
 
       if (!keywordData?.tags?.length) {
         return {
@@ -178,7 +178,7 @@ export const getDashboardByIdService = async (
         tagCategoryDocs.map((doc) => [
           doc.ref.path,
           { id: doc.id, ...doc.data() },
-        ]),
+        ])
       );
 
       const tags = tagDocs.map((tagDoc) => {
@@ -187,14 +187,14 @@ export const getDashboardByIdService = async (
 
         if (tagCategoryRef) {
           const tagCategoryIndex = tagCategories.findIndex(
-            (category: any) => category.name === tagData.tagCategory,
+            (category: any) => category.name === tagData.tagCategory
           );
 
           if (tagCategoryIndex !== -1) {
             tagCategories[tagCategoryIndex].tags =
               tagCategories[tagCategoryIndex].tags || [];
             const tagIndex = tagCategories[tagCategoryIndex].tags.findIndex(
-              (tag) => tag.name === tagData.name,
+              (tag) => tag.name === tagData.name
             );
 
             // If the tag does not exist in the category, add it
@@ -261,24 +261,24 @@ export const getDashboardByIdService = async (
 export const getDashboardBySuffixService = async (
   dashboardSuffix: string,
   res: any,
-  timeRange: number | null,
+  timeRange: number | null
 ) => {
   try {
     const suffixQuery = await db
-      .collection('dashboards')
-      .where('suffix', '==', dashboardSuffix)
+      .collection("dashboards")
+      .where("suffix", "==", dashboardSuffix)
       .limit(1)
       .get();
 
     if (suffixQuery.empty) {
-      return res.status(404).send({ error: 'dashboard not found' });
+      return res.status(404).send({ error: "dashboard not found" });
     }
     const dashboardDoc = suffixQuery.docs[0];
 
     const dashboardData = await getDashboardByIdService(
       dashboardDoc.id,
       res,
-      timeRange,
+      timeRange
     );
 
     return dashboardData;
@@ -293,34 +293,34 @@ export const getDashboardByClientSuffixandDashboardSuffixService = async (
   clientSuffix: string,
   dashboardSuffix: string,
   res: any,
-  timeRange: number | null,
+  timeRange: number | null
 ) => {
   try {
     const clientQuery = await db
-      .collection('clients')
-      .where('suffix', '==', clientSuffix)
+      .collection("clients")
+      .where("suffix", "==", clientSuffix)
       .limit(1)
       .get();
 
     if (clientQuery.empty) {
-      return res.status(404).send({ error: 'client not found' });
+      return res.status(404).send({ error: "client not found" });
     }
 
     const suffixQuery = await db
-      .collection('dashboards')
-      .where('clientRef', '==', clientQuery.docs[0].ref)
-      .where('suffix', '==', dashboardSuffix)
+      .collection("dashboards")
+      .where("clientRef", "==", clientQuery.docs[0].ref)
+      .where("suffix", "==", dashboardSuffix)
       .limit(1)
       .get();
 
     if (suffixQuery.empty) {
-      return res.status(404).send({ error: 'dashboard not found' });
+      return res.status(404).send({ error: "dashboard not found" });
     }
     const dashboardDoc = suffixQuery.docs[0];
     const dashboardData = await getDashboardByIdService(
       dashboardDoc.id,
       res,
-      timeRange,
+      timeRange
     );
 
     return dashboardData;
@@ -333,7 +333,7 @@ export const getDashboardByClientSuffixandDashboardSuffixService = async (
 
 export const deleteDashboardByIdService = async (
   dashboardId: string,
-  db: admin.firestore.Firestore,
+  db: admin.firestore.Firestore
 ): Promise<void> => {
   logger.info(`START delete dashboard ${dashboardId}`);
 
@@ -341,7 +341,7 @@ export const deleteDashboardByIdService = async (
 
   try {
     // Get the dashboard reference
-    const dashboardRef = db.collection('dashboards').doc(dashboardId);
+    const dashboardRef = db.collection("dashboards").doc(dashboardId);
     const dashboardDoc = await dashboardRef.get();
 
     if (!dashboardDoc.exists) {
@@ -376,15 +376,15 @@ export const updateDashboardService = async (
     name?: string;
     suffix?: string;
     description?: string;
-  },
+  }
 ) => {
-  logger.info('dashboard.service.updateDashboardService');
+  logger.info("dashboard.service.updateDashboardService");
   try {
-    const dashboardRef = db.collection('dashboards').doc(dashboardId);
+    const dashboardRef = db.collection("dashboards").doc(dashboardId);
     const dashboardDoc = await dashboardRef.get();
 
     if (!dashboardDoc.exists) {
-      throw new Error('Dashboard not found');
+      throw new Error("Dashboard not found");
     }
 
     const updateData: Record<string, any> = {};
