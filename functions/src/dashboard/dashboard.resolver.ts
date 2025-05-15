@@ -1,4 +1,4 @@
-import { db } from '..';
+import { db } from "..";
 import {
   createDashboardService,
   deleteDashboardByIdService,
@@ -6,8 +6,8 @@ import {
   getDashboardByIdService,
   getDashboardBySuffixService,
   updateDashboardService,
-} from './dashboard.service';
-import { cleanupKeywords } from './dashboard';
+} from "./dashboard.service";
+import { cleanupKeywords } from "./dashboard";
 
 // Add interface at the top of the file after imports
 interface TagCategory {
@@ -18,10 +18,10 @@ interface TagCategory {
 
 export const testHandler = async (req: any, res: any) => {
   try {
-    return await res.status(200).send({ greeting: 'hello test' });
+    return await res.status(200).send({ greeting: "hello test" });
   } catch (error) {
-    console.error('Error greeting:', error);
-    return res.status(500).send({ error: 'Server failed to greet client' });
+    console.error("Error greeting:", error);
+    return res.status(500).send({ error: "Server failed to greet client" });
   }
 };
 
@@ -30,11 +30,19 @@ export const createDashboardHandler = async (req: any, res: any) => {
     const dashboardRef = await createDashboardService(req.body);
     return res.status(200).json({
       id: dashboardRef.id,
-      message: 'dashboard created successfully',
+      message: "dashboard created successfully",
     });
-  } catch (error) {
-    console.error('Error creating dashboard:', error);
-    return res.status(500).json({ error: 'Failed to create dashboard' });
+  } catch (error: any) {
+    console.error("Error creating dashboard:", {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+    });
+    return res.status(error.code || 500).json({
+      name: error.name || "Error",
+      message: error.message || "Failed to create dashboard",
+      code: error.code || 500,
+    });
   }
 };
 
@@ -45,15 +53,15 @@ export const getDashboardsHandler = async (req: any, res: any) => {
 
     if (clientId) {
       snapshot = await db
-        .collection('dashboards')
-        .where('clientId', '==', clientId)
+        .collection("dashboards")
+        .where("clientId", "==", clientId)
         .get();
     } else {
-      snapshot = await db.collection('dashboards').get();
+      snapshot = await db.collection("dashboards").get();
     }
 
     if (snapshot.empty) {
-      console.log('No matching documents found.');
+      console.log("No matching documents found.");
       return res.status(200).json({ dashboards: [] });
     }
     const items: any[] = [];
@@ -76,15 +84,15 @@ export const getDashboardsForClientHandler = async (req: any, res: any) => {
 
     // Add validation
     if (!clientId) {
-      return res.status(400).json({ error: 'Client ID is required' });
+      return res.status(400).json({ error: "Client ID is required" });
     }
     const snapshot = await db
-      .collection('dashboards')
-      .where('clientId', '==', clientId)
+      .collection("dashboards")
+      .where("clientId", "==", clientId)
       .get();
 
     if (snapshot.empty) {
-      console.log('No matching documents found.');
+      console.log("No matching documents found.");
       return res.status(200).json({ dashboards: [] });
     }
 
@@ -105,7 +113,7 @@ export const getDashboardsForClientHandler = async (req: any, res: any) => {
           const data = categoryDoc.data();
           return {
             id: categoryDoc.id,
-            name: data?.name || 'Unnamed Category', // Provide a default name if missing
+            name: data?.name || "Unnamed Category", // Provide a default name if missing
             ...data,
           };
         });
@@ -124,7 +132,7 @@ export const getDashboardsForClientHandler = async (req: any, res: any) => {
     return res.status(200).json(response);
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: 'Failed to fetch dashboards' });
+    return res.status(500).json({ error: "Failed to fetch dashboards" });
   }
 };
 
@@ -135,26 +143,26 @@ export const getDashboardHandler = async (req: any, res: any) => {
     let dashboard;
 
     const timeRangeInt =
-      timeRange === 'undefined' ? null : parseInt(timeRange, 10);
+      timeRange === "undefined" ? null : parseInt(timeRange, 10);
     if (dashboardSuffix) {
       dashboard = await getDashboardByClientSuffixandDashboardSuffixService(
         clientSuffix,
         dashboardSuffix,
         res,
-        timeRangeInt,
+        timeRangeInt
       );
     } else if (dashboard_id) {
       dashboard = await getDashboardByIdService(
         dashboard_id,
         res,
-        timeRangeInt,
+        timeRangeInt
       );
     }
 
     return res.status(200).send(dashboard);
   } catch (error) {
-    console.error('Error fetching dashboard:', error);
-    return res.status(500).send({ error: 'Failed to fetch dashboard' });
+    console.error("Error fetching dashboard:", error);
+    return res.status(500).send({ error: "Failed to fetch dashboard" });
   }
 };
 
@@ -169,27 +177,27 @@ export const cleanDashboardHandler = async (req: any, res: any) => {
     }
 
     if (!dashboardId) {
-      return res.status(400).send({ error: 'Dashboard ID is required' });
+      return res.status(400).send({ error: "Dashboard ID is required" });
     }
 
     await cleanupKeywords(db, dashboardId);
     return res
       .status(200)
-      .send({ message: 'Dashboard keywords cleaned successfully' });
+      .send({ message: "Dashboard keywords cleaned successfully" });
   } catch (error) {
-    console.error('Error cleaning dashboard:', error);
-    return res.status(500).send({ error: 'Failed to clean dashboard' });
+    console.error("Error cleaning dashboard:", error);
+    return res.status(500).send({ error: "Failed to clean dashboard" });
   }
 };
 
 export const deleteDashboardByIdHandler = async (
   req: any,
-  res: any,
+  res: any
 ): Promise<void> => {
   const dashboardId = req.params?.dashboard_id;
 
   if (!dashboardId) {
-    res.status(400).json({ error: 'Dashboard ID is required' });
+    res.status(400).json({ error: "Dashboard ID is required" });
     return;
   }
 
@@ -201,15 +209,15 @@ export const deleteDashboardByIdHandler = async (
       dashboardId,
     });
   } catch (error: any) {
-    console.error('Error in deleteDashboardByIdHandler:', error);
+    console.error("Error in deleteDashboardByIdHandler:", error);
 
-    if (error.message.includes('not found')) {
+    if (error.message.includes("not found")) {
       res.status(404).json({ error: error.message });
       return;
     }
 
     res.status(500).json({
-      error: 'Internal server error while deleting dashboard',
+      error: "Internal server error while deleting dashboard",
       details: error.message,
     });
   }
@@ -220,7 +228,7 @@ export const updateDashboardHandler = async (req: any, res: any) => {
     const dashboardId = req.params?.dashboard_id;
 
     if (!dashboardId) {
-      return res.status(400).json({ error: 'Dashboard ID is required' });
+      return res.status(400).json({ error: "Dashboard ID is required" });
     }
 
     const dashboardRef = await updateDashboardService(dashboardId, req.body);
@@ -240,18 +248,18 @@ export const updateDashboardHandler = async (req: any, res: any) => {
     } else {
       return res.status(200).json({
         error: {
-          code: '',
-          message: 'Dashboard update failed',
+          code: "",
+          message: "Dashboard update failed",
         },
       });
     }
   } catch (error) {
-    console.error('Error updating dashboard:', error);
+    console.error("Error updating dashboard:", error);
 
-    if (error instanceof Error && error.message.includes('not found')) {
+    if (error instanceof Error && error.message.includes("not found")) {
       return res.status(404).json({ error: error.message });
     }
 
-    return res.status(500).json({ error: 'Failed to update dashboard' });
+    return res.status(500).json({ error: "Failed to update dashboard" });
   }
 };

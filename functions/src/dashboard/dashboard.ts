@@ -107,6 +107,7 @@ export const createOrUpdateDashboard = async (
 
   const dashboardQuery = await db
     .collection("dashboards")
+    .where("suffix", "==", suffix)
     .where("name", "==", name.trim())
     .get();
 
@@ -223,7 +224,7 @@ export const fetchDataForSEO = async (
   const auth = Buffer.from(
     `${serviceAccount.dataforseo_login}:${serviceAccount.dataforseo_password}`
   ).toString("base64");
-  console.log("auth:", { auth });
+
   for (const batch of keywordBatches) {
     try {
       const response = await fetch(
@@ -375,7 +376,7 @@ export const processKeywordsAndTags = async (
     }
   }
 
-  logger.info("Process keywords");
+  logger.info("Process keywords:", keywords);
   // Process keywords
   for (const keyword of keywords) {
     const existingKeyword = existingKeywords.get(keyword.Keyword);
@@ -438,7 +439,6 @@ export const processKeywordsAndTags = async (
     }
 
     // Prepare row data with monthly searches
-    logger.info("Prepare row data with monthly searches");
     const row = { ...keyword };
     if (searchVolume && searchVolume?.monthly_searches) {
       searchVolume.monthly_searches.forEach((searchData) => {
@@ -451,7 +451,6 @@ export const processKeywordsAndTags = async (
     }
 
     // Set keyword data
-    logger.info("Set keyword data");
     const keywordData = {
       name: keyword.Keyword,
       dashboardRefs: [
@@ -468,7 +467,6 @@ export const processKeywordsAndTags = async (
     };
 
     // Add to batch
-    logger.info("Add to batch");
     batch.set(keywordRef, keywordData, { merge: true });
   }
 

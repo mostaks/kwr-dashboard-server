@@ -13,12 +13,26 @@ import {
 export const createDashboardService = async (body: ICreateDashboardArgs) => {
   logger.info("dashboard.service.createDashboardService");
   try {
-    const { name, tagCategories, keywords, location_name, clientId } = body;
+    const { name, suffix, tagCategories, keywords, location_name, clientId } =
+      body;
 
     if (!clientId) {
       throw {
         name: "Error",
         message: "No client id was provided to create this dashboard",
+        code: 400,
+      };
+    }
+
+    const checkDashboardQuery = await db
+      .collection("dashboards")
+      .where("suffix", "==", suffix)
+      .get();
+
+    if (!checkDashboardQuery.empty) {
+      throw {
+        name: "Error",
+        message: "Dashboard suffix already exists",
         code: 400,
       };
     }
