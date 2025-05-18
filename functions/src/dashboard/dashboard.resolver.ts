@@ -18,10 +18,10 @@ interface TagCategory {
 
 export const testHandler = async (req: any, res: any) => {
   try {
-    return await res.status(200).send({ greeting: "hello test" });
+    return res.status(200).json({ greeting: "hello test" });
   } catch (error) {
     console.error("Error greeting:", error);
-    return res.status(500).send({ error: "Server failed to greet client" });
+    return res.status(500).json({ error: "Server failed to greet client" });
   }
 };
 
@@ -140,29 +140,43 @@ export const getDashboardHandler = async (req: any, res: any) => {
   try {
     const { dashboardSuffix, dashboard_id, clientSuffix, timeRange } =
       req.query;
-    let dashboard;
+    console.log("get dashboard handler param:", {
+      dashboardSuffix,
+      dashboard_id,
+      clientSuffix,
+      timeRange,
+    });
 
     const timeRangeInt =
       timeRange === "undefined" ? null : parseInt(timeRange, 10);
+
+    let dashboard;
     if (dashboardSuffix) {
+      // Get the dashboard data without sending response
       dashboard = await getDashboardByClientSuffixandDashboardSuffixService(
         clientSuffix,
         dashboardSuffix,
-        res,
+        null, // Don't pass res to avoid response handling in service
         timeRangeInt
       );
     } else if (dashboard_id) {
+      // Get the dashboard data without sending response
       dashboard = await getDashboardByIdService(
         dashboard_id,
-        res,
+        null, // Don't pass res to avoid response handling in service
         timeRangeInt
       );
     }
 
-    return res.status(200).send(dashboard);
+    if (!dashboard) {
+      return res.status(404).json({ error: "Dashboard not found" });
+    }
+
+    // Send response only once, here in the handler
+    return res.status(200).json(dashboard);
   } catch (error) {
     console.error("Error fetching dashboard:", error);
-    return res.status(500).send({ error: "Failed to fetch dashboard" });
+    return res.status(500).json({ error: "Failed to fetch dashboard" });
   }
 };
 
@@ -172,21 +186,21 @@ export const cleanDashboardHandler = async (req: any, res: any) => {
     let dashboardId = dashboard_id;
 
     if (suffix) {
-      const dashboard = await getDashboardBySuffixService(suffix, res, null);
+      const dashboard = await getDashboardBySuffixService(suffix, null, null);
       dashboardId = dashboard.id;
     }
 
     if (!dashboardId) {
-      return res.status(400).send({ error: "Dashboard ID is required" });
+      return res.status(400).json({ error: "Dashboard ID is required" });
     }
 
     await cleanupKeywords(db, dashboardId);
     return res
       .status(200)
-      .send({ message: "Dashboard keywords cleaned successfully" });
+      .json({ message: "Dashboard keywords cleaned successfully" });
   } catch (error) {
     console.error("Error cleaning dashboard:", error);
-    return res.status(500).send({ error: "Failed to clean dashboard" });
+    return res.status(500).json({ error: "Failed to clean dashboard" });
   }
 };
 
