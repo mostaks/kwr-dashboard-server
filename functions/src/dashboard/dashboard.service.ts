@@ -108,6 +108,7 @@ export const getDashboardByIdService = async (
   timeRange: number | null
 ) => {
   try {
+    console.log("getDashboardByIdService", { dashboardId, res, timeRange });
     // Get dashboard document
     let dashboardDoc = await db.collection("dashboards").doc(dashboardId).get();
 

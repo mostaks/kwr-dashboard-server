@@ -18,7 +18,12 @@ interface TagCategory {
 
 export const testHandler = async (req: any, res: any) => {
   try {
-    return res.status(200).json({ greeting: "hello test" });
+    const greeting = await new Promise((resolve) => {
+      setTimeout(() => {
+        resolve("hello test");
+      }, 1000);
+    });
+    return res.status(200).json({ greeting });
   } catch (error) {
     console.error("Error greeting:", error);
     return res.status(500).json({ error: "Server failed to greet client" });
