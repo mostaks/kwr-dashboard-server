@@ -152,54 +152,125 @@ export const createOrUpdateDashboard = async (
   return { dashboardRef, dashboardQuery };
 };
 
+// export const createOrUpdateTagCategories = async (
+//   tagCategories: string[],
+//   dashboardRef: admin.firestore.DocumentReference,
+//   batch: admin.firestore.WriteBatch,
+//   db: admin.firestore.Firestore
+// ): Promise<admin.firestore.DocumentReference[]> => {
+//   logger.info("START tagCategories");
+
+//   const tagCategoryRefs: admin.firestore.DocumentReference[] = [];
+
+//   await Promise.all(
+//     tagCategories.map(async (category) => {
+//       const trimmedCategory = category.trim();
+//       const categoryQuery = await db
+//         .collection("tagCategories")
+//         .where("name", "==", trimmedCategory)
+//         .limit(1)
+//         .get();
+//       // Create or update tag category
+//       let categoryRef: admin.firestore.DocumentReference;
+//       if (categoryQuery.empty) {
+//         console.log(`Creating tag category ${trimmedCategory}`);
+//         categoryRef = db.collection("tagCategories").doc();
+//         batch.set(categoryRef, { name: trimmedCategory }, { merge: true });
+//       } else {
+//         console.log(`Found tag category ${trimmedCategory}`);
+//         categoryRef = categoryQuery.docs[0].ref;
+//         batch.update(categoryRef, { name: trimmedCategory });
+//       }
+
+//       tagCategoryRefs.push(categoryRef);
+//     })
+//   );
+
+//   // Update dashboard with tag category references
+//   batch.set(
+//     dashboardRef,
+//     {
+//       tagCategories: tagCategoryRefs,
+//     },
+//     { merge: true }
+//   );
+
+//   logger.info("COMPLETE tagCategories");
+
+//   return tagCategoryRefs;
+// };
+
 export const createOrUpdateTagCategories = async (
-  tagCategories: string[],
+  tagCategories: string[], // Original parameter name
   dashboardRef: admin.firestore.DocumentReference,
   batch: admin.firestore.WriteBatch,
   db: admin.firestore.Firestore
 ): Promise<admin.firestore.DocumentReference[]> => {
-  logger.info("START tagCategories");
+  logger.info("START tagCategories processing");
 
-  const tagCategoryRefs: admin.firestore.DocumentReference[] = [];
+  const finalTagCategoryRefs: admin.firestore.DocumentReference[] = [];
+  // Use a Map to ensure we only process (query/create) each unique category name once per call
+  // Key: trimmed category name, Value: DocumentReference
+  const processedCategories = new Map<
+    string,
+    admin.firestore.DocumentReference
+  >();
 
-  await Promise.all(
-    tagCategories.map(async (category) => {
-      const trimmedCategory = category.trim();
+  // Loop over the input category names
+  for (const name of tagCategories) {
+    const trimmedName = name.trim();
+    // Check if this category name was already processed in this call
+    let categoryRef: admin.firestore.DocumentReference | undefined =
+      processedCategories.get(trimmedName);
+
+    if (!categoryRef) {
+      // Not processed yet for this unique name in this run, so query Firestore
       const categoryQuery = await db
         .collection("tagCategories")
-        .where("name", "==", trimmedCategory)
+        .where("name", "==", trimmedName)
         .limit(1)
         .get();
-      // Create or update tag category
-      let categoryRef: admin.firestore.DocumentReference;
+
       if (categoryQuery.empty) {
-        console.log(`Creating tag category ${trimmedCategory}`);
-        categoryRef = db.collection("tagCategories").doc();
-        batch.set(categoryRef, { name: trimmedCategory }, { merge: true });
+        logger.info(`Creating new tag category: ${trimmedName}`);
+        categoryRef = db.collection("tagCategories").doc(); // Create new doc ref
+        batch.set(categoryRef, { name: trimmedName }, { merge: true }); // Add to batch
       } else {
-        console.log(`Found tag category ${trimmedCategory}`);
-        categoryRef = categoryQuery.docs[0].ref;
-        batch.update(categoryRef, { name: trimmedCategory });
+        logger.info(`Found existing tag category: ${trimmedName}`);
+        categoryRef = categoryQuery.docs[0].ref; // Use existing doc ref
+        // No batch.update needed here if we're just using the existing one by name,
+        // unless you want to update other fields on the category if found.
       }
-
-      tagCategoryRefs.push(categoryRef);
-    })
-  );
-
-  // Update dashboard with tag category references
+      // Store this ref in the map for this run, associated with its trimmed name.
+      // This ensures subsequent encounters of the same name in this call use the same ref.
+      if (categoryRef) {
+        // categoryRef should be defined here from either if/else block
+        processedCategories.set(trimmedName, categoryRef);
+      }
+    }
+    // Add the reference to the list that will be stored on the dashboard.
+    // If categoryRef was found in processedCategories map, it's reused.
+    // If it was just created/found from DB and put into the map, it's used.
+    if (categoryRef) {
+      // categoryRef should be defined here
+      finalTagCategoryRefs.push(categoryRef);
+    }
+  }
+  // Update the dashboard document with the collected tag category references.
+  // This list will contain one reference for each name in the input `tagCategories` array.
+  // If "Category A" was in the input twice, its corresponding ref will be in finalTagCategoryRefs twice,
+  // but both will point to the same single document for "Category A".
   batch.set(
     dashboardRef,
     {
-      tagCategories: tagCategoryRefs,
+      tagCategories: finalTagCategoryRefs,
     },
     { merge: true }
   );
 
-  logger.info("COMPLETE tagCategories");
-
-  return tagCategoryRefs;
+  logger.info("COMPLETE tagCategories processing");
+  return finalTagCategoryRefs;
 };
-
 export const fetchDataForSEO = async (
   keywords: Record<string, string>[],
   location_name: string,
