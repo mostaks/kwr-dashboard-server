@@ -6,7 +6,7 @@ import { ServiceAccount } from 'firebase-admin/lib/app/credential';
 import devServiceAccount from './permissions.dev.json';
 import prodServiceAccount from './permissions.json';
 import routes from './routes';
-
+import compression from "compression"
 const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '');
 
 const projectId = firebaseConfig.projectId;
@@ -34,6 +34,7 @@ const allowedOrigins = [
   'https://kwr-dashboard-client-l6w2g33cl-yianni-moustakas-projects.vercel.app',
 ];
 
+app.use(compression())
 app.use(
   cors({
     origin: (origin, callback) => {

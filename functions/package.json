@@ -18,6 +18,8 @@
   "main": "lib/index.js",
   "dependencies": {
     "@firebase/auth": "^1.7.9",
+    "@types/compression": "^1.8.0",
+    "compression": "^1.8.0",
     "cors": "^2.8.5",
     "express": "^4.21.1",
     "firebase": "^10.14.1",
